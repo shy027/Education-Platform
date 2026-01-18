@@ -6,6 +6,7 @@ import com.edu.platform.user.dto.request.*;
 import com.edu.platform.user.dto.response.CurrentUserResponse;
 import com.edu.platform.user.dto.response.LoginResponse;
 import com.edu.platform.user.service.AuthService;
+import com.edu.platform.user.service.SmsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,6 +29,7 @@ import java.util.Map;
 public class AuthController {
     
     private final AuthService authService;
+    private final SmsService smsService;
     
     @Operation(summary = "用户注册")
     @PostMapping("/register")
@@ -46,6 +48,36 @@ public class AuthController {
     public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return Result.success("登录成功", response);
+    }
+    
+    @Operation(summary = "手机号密码登录")
+    @PostMapping("/phone-password-login")
+    public Result<LoginResponse> phonePasswordLogin(@Valid @RequestBody PhonePasswordLoginRequest request) {
+        LoginResponse response = authService.phonePasswordLogin(request);
+        return Result.success("登录成功", response);
+    }
+    
+    @Operation(summary = "手机号验证码登录")
+    @PostMapping("/phone-code-login")
+    public Result<LoginResponse> phoneCodeLogin(@Valid @RequestBody PhoneCodeLoginRequest request) {
+        LoginResponse response = authService.phoneCodeLogin(request);
+        return Result.success("登录成功", response);
+    }
+    
+    @Operation(summary = "发送验证码")
+    @PostMapping("/send-code")
+    public Result<Map<String, Object>> sendCode(@Valid @RequestBody SendCodeRequest request) {
+        String code = smsService.sendVerifyCode(request.getPhone());
+        
+        Map<String, Object> data = new HashMap<>();
+        data.put("message", "验证码已发送");
+        // 开发模式返回验证码
+        if (code != null) {
+            data.put("code", code);
+            data.put("tip", "开发模式,验证码有效期5分钟");
+        }
+        
+        return Result.success("发送成功", data);
     }
     
     @Operation(summary = "获取当前用户信息")

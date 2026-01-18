@@ -51,4 +51,20 @@ public interface AuthService {
      */
     void updatePassword(Long userId, UpdatePasswordRequest request);
     
+    /**
+     * 手机号密码登录
+     *
+     * @param request 手机号密码登录请求
+     * @return 登录响应(包含token和用户信息)
+     */
+    LoginResponse phonePasswordLogin(PhonePasswordLoginRequest request);
+    
+    /**
+     * 手机号验证码登录
+     *
+     * @param request 手机号验证码登录请求
+     * @return 登录响应(包含token和用户信息)
+     */
+    LoginResponse phoneCodeLogin(PhoneCodeLoginRequest request);
+    
 }

@@ -12,6 +12,7 @@ import com.edu.platform.user.dto.response.LoginResponse;
 import com.edu.platform.user.entity.*;
 import com.edu.platform.user.mapper.*;
 import com.edu.platform.user.service.AuthService;
+import com.edu.platform.user.service.SmsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRelRoleMapper userRelRoleMapper;
     private final UserSchoolMapper userSchoolMapper;
     private final UserSchoolMemberMapper userSchoolMemberMapper;
+    private final SmsService smsService;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -284,6 +286,71 @@ public class AuthServiceImpl implements AuthService {
             schoolInfo.setMemberType(member.getMemberType());
             return schoolInfo;
         }).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+    }
+    
+    @Override
+    public LoginResponse phonePasswordLogin(PhonePasswordLoginRequest request) {
+        // 根据手机号查询用户
+        LambdaQueryWrapper<UserAccount> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserAccount::getPhone, request.getPhone());
+        wrapper.eq(UserAccount::getStatus, 1);
+        UserAccount user = userAccountMapper.selectOne(wrapper);
+        
+        if (user == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED.getCode(), "手机号未注册");
+        }
+        
+        // 验证密码
+        if (!PasswordUtil.matches(request.getPassword(), user.getPassword())) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED.getCode(), "密码错误");
+        }
+        
+        return buildLoginResponse(user);
+    }
+    
+    @Override
+    public LoginResponse phoneCodeLogin(PhoneCodeLoginRequest request) {
+        // 验证验证码
+        if (!smsService.verifyCode(request.getPhone(), request.getCode())) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED.getCode(), "验证码错误或已过期");
+        }
+        
+        // 根据手机号查询用户
+        LambdaQueryWrapper<UserAccount> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserAccount::getPhone, request.getPhone());
+        wrapper.eq(UserAccount::getStatus, 1);
+        UserAccount user = userAccountMapper.selectOne(wrapper);
+        
+        if (user == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED.getCode(), "手机号未注册");
+        }
+        
+        return buildLoginResponse(user);
+    }
+    
+    /**
+     * 构建登录响应
+     */
+    private LoginResponse buildLoginResponse(UserAccount user) {
+        // 更新最后登录时间
+        user.setLastLoginTime(LocalDateTime.now());
+        userAccountMapper.updateById(user);
+        
+        // 生成token
+        String token = JwtUtil.generateToken(user.getId(), user.getUsername());
+        
+        // 构建响应
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
+        userInfo.setUserId(user.getId());
+        userInfo.setUsername(user.getUsername());
+        userInfo.setRealName(user.getRealName());
+        userInfo.setAvatar(user.getAvatarUrl());
+        response.setUserInfo(userInfo);
+        
+        return response;
     }
     
 }

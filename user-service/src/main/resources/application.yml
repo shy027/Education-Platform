@@ -61,3 +61,11 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+
+# 容联云短信配置
+ronglian:
+  account-sid: 2c94811c9035ff9f0192adc5b25b7d76
+  auth-token: 5ca0ce3c80114f4598294a6bc59a68c3
+  app-id: 2c94811c9035ff9f0192adc5b3ec7d7d
+  template-id: 1234
+  dev-mode: true  # 开发模式：true-模拟发送，false-真实发送
