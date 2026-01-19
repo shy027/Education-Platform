@@ -1,0 +1,10 @@
+# 阿里云OSS配置示例
+# 复制此文件为 application-local.yml 并填写真实密钥
+
+aliyun:
+  oss:
+    endpoint: oss-cn-nanjing.aliyuncs.com
+    access-key-id: your-access-key-id-here
+    access-key-secret: your-access-key-secret-here
+    bucket-name: class-practice
+    folder: education

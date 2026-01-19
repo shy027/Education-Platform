@@ -15,6 +15,8 @@ import com.edu.platform.user.service.AuthService;
 import com.edu.platform.user.service.SmsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -136,6 +138,7 @@ public class AuthServiceImpl implements AuthService {
     }
     
     @Override
+    @Cacheable(value = "user", key = "#userId")
     public CurrentUserResponse getCurrentUser(Long userId) {
         // 查询用户信息
         UserAccount user = userAccountMapper.selectById(userId);
@@ -166,6 +169,7 @@ public class AuthServiceImpl implements AuthService {
     
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = "user", key = "#userId")
     public void updateProfile(Long userId, UpdateProfileRequest request) {
         UserAccount user = userAccountMapper.selectById(userId);
         if (user == null) {

@@ -69,3 +69,12 @@ ronglian:
   app-id: 2c94811c9035ff9f0192adc5b3ec7d7d
   template-id: 1234
   dev-mode: true  # 开发模式：true-模拟发送，false-真实发送
+
+# 阿里云OSS配置
+aliyun:
+  oss:
+    endpoint: oss-cn-nanjing.aliyuncs.com
+    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID:your-access-key-id}
+    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:your-access-key-secret}
+    bucket-name: class-practice
+    folder: education

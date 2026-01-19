@@ -78,7 +78,12 @@ public enum ResultCode {
     /**
      * 数据不存在
      */
-    DATA_NOT_FOUND(404, "数据不存在");
+    DATA_NOT_FOUND(404, "数据不存在"),
+    
+    /**
+     * 系统错误
+     */
+    SYSTEM_ERROR(500, "系统错误");
     
     private final Integer code;
     private final String message;
