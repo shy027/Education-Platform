@@ -2,11 +2,14 @@ package com.edu.platform.user.controller;
 
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
+import com.edu.platform.user.dto.request.RoleCreateRequest;
 import com.edu.platform.user.dto.request.RoleQueryRequest;
+import com.edu.platform.user.dto.request.RoleUpdateRequest;
 import com.edu.platform.user.dto.response.RoleResponse;
 import com.edu.platform.user.service.RoleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -62,4 +65,31 @@ public class RoleController {
         return Result.success(list);
     }
     
+    @Operation(summary = "创建角色")
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Long> createRole(@Valid @RequestBody RoleCreateRequest request) {
+        Long roleId = roleService.createRole(request);
+        return Result.success(roleId);
+    }
+    
+    @Operation(summary = "更新角色")
+    @PutMapping("/{roleId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Void> updateRole(
+            @PathVariable Long roleId,
+            @Valid @RequestBody RoleUpdateRequest request) {
+        roleService.updateRole(roleId, request);
+        return Result.success();
+    }
+    
+    @Operation(summary = "删除角色")
+    @DeleteMapping("/{roleId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Void> deleteRole(@PathVariable Long roleId) {
+        roleService.deleteRole(roleId);
+        return Result.success();
+    }
+    
 }
+

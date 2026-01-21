@@ -117,8 +117,10 @@ public class AuthServiceImpl implements AuthService {
         // 获取用户角色
         List<String> roles = getUserRoles(user.getId());
         
-        // 生成Token
-        String token = JwtUtil.generateToken(user.getId(), user.getUsername());
+        // 生成Token(包含角色信息)
+        java.util.Map<String, Object> claims = new java.util.HashMap<>();
+        claims.put("roles", roles);
+        String token = JwtUtil.generateToken(user.getId(), user.getUsername(), claims);
         
         // 构建响应
         LoginResponse response = new LoginResponse();
@@ -340,8 +342,13 @@ public class AuthServiceImpl implements AuthService {
         user.setLastLoginTime(LocalDateTime.now());
         userAccountMapper.updateById(user);
         
-        // 生成token
-        String token = JwtUtil.generateToken(user.getId(), user.getUsername());
+        // 获取用户角色
+        List<String> roles = getUserRoles(user.getId());
+        
+        // 生成token(包含角色信息)
+        java.util.Map<String, Object> claims = new java.util.HashMap<>();
+        claims.put("roles", roles);
+        String token = JwtUtil.generateToken(user.getId(), user.getUsername(), claims);
         
         // 构建响应
         LoginResponse response = new LoginResponse();
@@ -352,6 +359,7 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setUsername(user.getUsername());
         userInfo.setRealName(user.getRealName());
         userInfo.setAvatar(user.getAvatarUrl());
+        userInfo.setRoles(roles);
         response.setUserInfo(userInfo);
         
         return response;

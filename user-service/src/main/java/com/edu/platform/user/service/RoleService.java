@@ -1,7 +1,9 @@
 package com.edu.platform.user.service;
 
 import com.edu.platform.common.result.PageResult;
+import com.edu.platform.user.dto.request.RoleCreateRequest;
 import com.edu.platform.user.dto.request.RoleQueryRequest;
+import com.edu.platform.user.dto.request.RoleUpdateRequest;
 import com.edu.platform.user.dto.response.RoleResponse;
 
 import java.util.List;
@@ -35,5 +37,28 @@ public interface RoleService {
      * @return 角色列表
      */
     List<RoleResponse> getAllRoles();
+    
+    /**
+     * 创建角色
+     *
+     * @param request 创建请求
+     * @return 角色ID
+     */
+    Long createRole(RoleCreateRequest request);
+    
+    /**
+     * 更新角色
+     *
+     * @param roleId 角色ID
+     * @param request 更新请求
+     */
+    void updateRole(Long roleId, RoleUpdateRequest request);
+    
+    /**
+     * 删除角色
+     *
+     * @param roleId 角色ID
+     */
+    void deleteRole(Long roleId);
     
 }

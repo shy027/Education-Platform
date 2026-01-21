@@ -148,4 +148,23 @@ public class JwtUtil {
         }
     }
     
+    /**
+     * 获取角色列表
+     *
+     * @param token Token
+     * @return 角色列表
+     */
+    @SuppressWarnings("unchecked")
+    public static java.util.List<String> getRoles(String token) {
+        Claims claims = parseToken(token);
+        if (claims == null) {
+            return java.util.Collections.emptyList();
+        }
+        Object roles = claims.get("roles");
+        if (roles instanceof java.util.List) {
+            return (java.util.List<String>) roles;
+        }
+        return java.util.Collections.emptyList();
+    }
+    
 }

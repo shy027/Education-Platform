@@ -81,6 +81,11 @@ public enum ResultCode {
     DATA_NOT_FOUND(404, "数据不存在"),
     
     /**
+     * 操作失败
+     */
+    OPERATION_FAILED(400, "操作失败"),
+    
+    /**
      * 系统错误
      */
     SYSTEM_ERROR(500, "系统错误");
