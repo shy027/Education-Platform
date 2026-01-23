@@ -15,8 +15,8 @@ public class TagQueryRequest {
     @Schema(description = "标签名称(模糊查询)", example = "爱国")
     private String tagName;
     
-    @Schema(description = "标签分类", example = "核心价值观")
-    private String tagCategory;
+    @Schema(description = "所属分类ID", example = "1")
+    private Long categoryId;
     
     @Schema(description = "状态 (0:禁用 1:启用)", example = "1")
     private Integer status;

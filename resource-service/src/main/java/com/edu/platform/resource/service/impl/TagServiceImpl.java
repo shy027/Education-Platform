@@ -12,10 +12,10 @@ import com.edu.platform.resource.dto.request.TagCreateRequest;
 import com.edu.platform.resource.dto.request.TagQueryRequest;
 import com.edu.platform.resource.dto.request.TagUpdateRequest;
 import com.edu.platform.resource.dto.response.TagResponse;
-import com.edu.platform.resource.entity.ResourceCaseRelTag;
 import com.edu.platform.resource.entity.ResourceTag;
-import com.edu.platform.resource.mapper.ResourceCaseRelTagMapper;
+import com.edu.platform.resource.entity.ResourceTagRelation;
 import com.edu.platform.resource.mapper.ResourceTagMapper;
+import com.edu.platform.resource.mapper.ResourceTagRelationMapper;
 import com.edu.platform.resource.service.TagService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 public class TagServiceImpl implements TagService {
     
     private final ResourceTagMapper resourceTagMapper;
-    private final ResourceCaseRelTagMapper resourceCaseRelTagMapper;
+    private final ResourceTagRelationMapper resourceTagRelationMapper;
     
     @Override
     public PageResult<TagResponse> getTagList(TagQueryRequest request) {
@@ -58,8 +58,8 @@ public class TagServiceImpl implements TagService {
             wrapper.like(ResourceTag::getTagName, request.getTagName());
         }
         
-        if (StrUtil.isNotBlank(request.getTagCategory())) {
-            wrapper.eq(ResourceTag::getTagCategory, request.getTagCategory());
+        if (request.getCategoryId() != null) {
+            wrapper.eq(ResourceTag::getCategoryId, request.getCategoryId());
         }
         
         if (request.getStatus() != null) {
@@ -143,13 +143,13 @@ public class TagServiceImpl implements TagService {
             throw new BusinessException(ResultCode.DATA_NOT_FOUND.getCode(), "标签不存在");
         }
         
-        // 检查是否有案例关联该标签
-        LambdaQueryWrapper<ResourceCaseRelTag> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ResourceCaseRelTag::getTagId, tagId);
-        Long caseCount = resourceCaseRelTagMapper.selectCount(wrapper);
-        if (caseCount > 0) {
+        // 检查是否有资源关联该标签
+        LambdaQueryWrapper<ResourceTagRelation> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ResourceTagRelation::getTagId, tagId);
+        Long count = resourceTagRelationMapper.selectCount(wrapper);
+        if (count > 0) {
             throw new BusinessException(ResultCode.OPERATION_FAILED.getCode(), 
-                    "该标签下还有 " + caseCount + " 个案例,无法删除");
+                    "该标签下还有 " + count + " 个资源,无法删除");
         }
         
         // 逻辑删除标签
@@ -178,7 +178,8 @@ public class TagServiceImpl implements TagService {
         TagResponse response = new TagResponse();
         response.setId(tag.getId());
         response.setTagName(tag.getTagName());
-        response.setTagCategory(tag.getTagCategory());
+        response.setTagColor(tag.getTagColor());
+        response.setCategoryId(tag.getCategoryId());
         response.setDescription(tag.getDescription());
         response.setUseCount(tag.getUseCount());
         response.setSortOrder(tag.getSortOrder());

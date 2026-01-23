@@ -20,8 +20,11 @@ public class TagResponse {
     @Schema(description = "标签名称")
     private String tagName;
     
-    @Schema(description = "标签分类")
-    private String tagCategory;
+    @Schema(description = "标签颜色")
+    private String tagColor;
+    
+    @Schema(description = "所属分类ID")
+    private Long categoryId;
     
     @Schema(description = "标签描述")
     private String description;

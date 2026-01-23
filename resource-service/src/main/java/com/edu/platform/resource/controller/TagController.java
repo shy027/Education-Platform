@@ -34,14 +34,14 @@ public class TagController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TEACHER')")
     public Result<PageResult<TagResponse>> getTagList(
             @RequestParam(required = false) String tagName,
-            @RequestParam(required = false) String tagCategory,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
         
         TagQueryRequest request = new TagQueryRequest();
         request.setTagName(tagName);
-        request.setTagCategory(tagCategory);
+        request.setCategoryId(categoryId);
         request.setStatus(status);
         request.setPageNum(pageNum);
         request.setPageSize(pageSize);

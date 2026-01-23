@@ -17,8 +17,11 @@ public class TagUpdateRequest {
     @NotBlank(message = "标签名称不能为空")
     private String tagName;
     
-    @Schema(description = "标签分类", example = "核心价值观")
-    private String tagCategory;
+    @Schema(description = "标签颜色", example = "#F56C6C")
+    private String tagColor;
+    
+    @Schema(description = "所属分类ID", example = "1")
+    private Long categoryId;
     
     @Schema(description = "标签描述", example = "培养爱国主义精神和民族自豪感")
     private String description;

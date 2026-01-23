@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: resource-service
+  servlet:
+    multipart:
+      max-file-size: -1
+      max-request-size: -1
   
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -61,6 +65,9 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+
+
+
 
 # 阿里云OSS配置(与user-service共用)
 aliyun:

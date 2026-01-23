@@ -1,6 +1,7 @@
 package com.edu.platform.resource.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.edu.platform.common.entity.BaseEntity;
@@ -29,9 +30,21 @@ public class ResourceTag extends BaseEntity {
     private String tagName;
     
     /**
-     * 标签分类
+     * 标签颜色(十六进制,如:#409EFF)
      */
+    private String tagColor;
+    
+    /**
+     * 标签分类(已废弃,使用categoryId)
+     */
+    @Deprecated
+    @TableField(exist = false)
     private String tagCategory;
+    
+    /**
+     * 所属分类ID
+     */
+    private Long categoryId;
     
     /**
      * 标签描述
