@@ -4,36 +4,35 @@ server:
 spring:
   application:
     name: course-service
-  
   datasource:
-    type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/education_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    url: jdbc:mysql://localhost:3306/education_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
     password: password
-    
-    druid:
-      initial-size: 5
-      min-idle: 5
-      max-active: 20
-  
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      max-lifetime: 1800000
+      connection-timeout: 30000
   data:
     redis:
       host: localhost
       port: 6379
       database: 0
-  
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.edu.platform.course.entity
   configuration:
     map-underscore-to-camel-case: true
+    cache-enabled: false
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
@@ -42,7 +41,19 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+# Knife4j 配置 (适用于 4.x 版本)
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
 knife4j:
   enable: true
   setting:
     language: zh_cn
+    enable-swagger-models: true
+    enable-document-manage: true
+    swagger-model-name: 实体类列表
