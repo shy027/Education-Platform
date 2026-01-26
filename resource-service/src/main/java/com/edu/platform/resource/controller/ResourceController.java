@@ -15,8 +15,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import com.edu.platform.common.annotation.RequireAdminOrLeader;
+import com.edu.platform.common.annotation.RequireTeacherOrAbove;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,7 +37,7 @@ public class ResourceController {
     
     @Operation(summary = "创建资源")
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TEACHER')")
+    @RequireTeacherOrAbove
     public Result<Long> createResource(
             @Valid @RequestBody ResourceCreateRequest request,
             HttpServletRequest httpRequest) {
@@ -51,7 +52,7 @@ public class ResourceController {
     
     @Operation(summary = "更新资源")
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TEACHER')")
+    @RequireTeacherOrAbove
     public Result<Void> updateResource(
             @PathVariable Long id,
             @Valid @RequestBody ResourceUpdateRequest request,
@@ -66,7 +67,7 @@ public class ResourceController {
     
     @Operation(summary = "删除资源")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TEACHER')")
+    @RequireTeacherOrAbove
     public Result<Void> deleteResource(
             @PathVariable Long id,
             HttpServletRequest httpRequest) {
@@ -114,7 +115,7 @@ public class ResourceController {
     
     @Operation(summary = "提交审核")
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasAuthority('ROLE_TEACHER')")
+    @RequireTeacherOrAbove
     public Result<Void> submitForAudit(
             @PathVariable Long id,
             HttpServletRequest httpRequest) {
@@ -128,7 +129,7 @@ public class ResourceController {
     
     @Operation(summary = "审核资源")
     @PostMapping("/{id}/audit")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<Void> auditResource(
             @PathVariable Long id,
             @Valid @RequestBody ResourceAuditRequest request,
@@ -143,7 +144,7 @@ public class ResourceController {
     
     @Operation(summary = "获取待审核列表")
     @GetMapping("/pending")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<PageResult<ResourceResponse>> getPendingList(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
@@ -160,7 +161,7 @@ public class ResourceController {
     
     @Operation(summary = "下架资源")
     @PostMapping("/{id}/offline")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<Void> offlineResource(
             @PathVariable Long id,
             HttpServletRequest httpRequest) {

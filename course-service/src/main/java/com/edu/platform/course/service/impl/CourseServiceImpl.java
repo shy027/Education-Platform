@@ -18,6 +18,7 @@ import com.edu.platform.course.dto.response.CourseListResponse;
 import com.edu.platform.course.entity.Course;
 import com.edu.platform.course.mapper.CourseMapper;
 import com.edu.platform.course.service.CourseService;
+import com.edu.platform.course.util.PermissionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,8 +45,8 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             throw new BusinessException(ResultCode.UNAUTHORIZED.getCode(), "未登录");
         }
         
-        // 2. 校验权限 (只有教师或管理员可以创建课程)
-        if (!UserContext.hasRole("TEACHER") && !UserContext.hasRole("ADMIN")) {
+        // 2. 校验权限 (只有教师、校领导或管理员可以创建课程)
+        if (!PermissionUtil.isTeacherOrAbove()) {
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "只有教师可以创建课程");
         }
 
@@ -85,7 +86,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
              throw new BusinessException(ResultCode.UNAUTHORIZED.getCode(), "未登录");
         }
         
-        if (!course.getTeacherId().equals(currentUserId) && !UserContext.hasRole("ADMIN")) {
+        if (!PermissionUtil.hasCourseManagePermission(course.getTeacherId(), currentUserId)) {
              throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权修改此课程");
         }
 
@@ -103,7 +104,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         Long currentUserId = UserContext.getUserId();
         
         // 权限校验：根据用户角色过滤
-        boolean isAdmin = UserContext.hasRole("ADMIN");
+        boolean isAdmin = PermissionUtil.isAdminOrLeader();
         boolean isTeacher = course.getTeacherId().equals(currentUserId);
         
         // 普通用户只能看已审核且开放的课程
@@ -127,7 +128,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
     @Override
     public Page<CourseListResponse> pageCourses(CourseQueryRequest request) {
         Long currentUserId = UserContext.getUserId();
-        boolean isAdmin = UserContext.hasRole("ADMIN");
+        boolean isAdmin = PermissionUtil.isAdminOrLeader();
         
         Page<Course> page = new Page<>(request.getPageNum(), request.getPageSize());
         LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<>();
@@ -184,8 +185,8 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             throw new BusinessException(ResultCode.DATA_NOT_FOUND.getCode(), "课程不存在");
         }
         
-        // 权限校验：只有课程教师或管理员可以修改状态
-        if (!course.getTeacherId().equals(currentUserId) && !UserContext.hasRole("ADMIN")) {
+        // 权限校验：只有课程教师、校领导或管理员可以修改状态
+        if (!PermissionUtil.hasCourseManagePermission(course.getTeacherId(), currentUserId)) {
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权修改课程状态");
         }
         
@@ -200,8 +201,8 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             throw new BusinessException(ResultCode.UNAUTHORIZED.getCode(), "未登录");
         }
         
-        // 权限校验：只有管理员可以查看待审核课程
-        if (!UserContext.hasRole("ADMIN")) {
+        // 权限校验：只有管理员或校领导可以查看待审核课程
+        if (!PermissionUtil.isAdminOrLeader()) {
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权查看待审核课程");
         }
         
@@ -240,8 +241,8 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             throw new BusinessException(ResultCode.UNAUTHORIZED.getCode(), "未登录");
         }
         
-        // 权限校验：只有管理员可以审核课程
-        if (!UserContext.hasRole("ADMIN")) {
+        // 权限校验：只有管理员或校领导可以审核课程
+        if (!PermissionUtil.isAdminOrLeader()) {
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权审核课程");
         }
         

@@ -20,6 +20,7 @@ import com.edu.platform.course.entity.CourseMember;
 import com.edu.platform.course.mapper.CourseMemberMapper;
 import com.edu.platform.course.service.CourseMemberService;
 import com.edu.platform.course.service.CourseService;
+import com.edu.platform.course.util.PermissionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -369,7 +370,7 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
      */
     private boolean hasApprovePermission(Long courseId, Long userId) {
         // 管理员有权限
-        if (UserContext.hasRole("ADMIN")) {
+        if (PermissionUtil.isAdminOrLeader()) {
             return true;
         }
         
@@ -393,7 +394,7 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
      */
     private boolean hasManagePermission(Long courseId, Long userId) {
         // 管理员有权限
-        if (UserContext.hasRole("ADMIN")) {
+        if (PermissionUtil.isAdminOrLeader()) {
             return true;
         }
         

@@ -10,8 +10,9 @@ import com.edu.platform.resource.service.TagService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.edu.platform.common.annotation.RequireAdminOrLeader;
+import com.edu.platform.common.annotation.RequireTeacherOrAbove;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,7 +32,7 @@ public class TagController {
     
     @Operation(summary = "标签列表查询(分页)")
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TEACHER')")
+    @RequireTeacherOrAbove
     public Result<PageResult<TagResponse>> getTagList(
             @RequestParam(required = false) String tagName,
             @RequestParam(required = false) Long categoryId,
@@ -52,7 +53,7 @@ public class TagController {
     
     @Operation(summary = "创建标签")
     @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<Long> createTag(@Valid @RequestBody TagCreateRequest request) {
         Long tagId = tagService.createTag(request);
         return Result.success(tagId);
@@ -60,7 +61,7 @@ public class TagController {
     
     @Operation(summary = "更新标签")
     @PutMapping("/{tagId}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<Void> updateTag(
             @PathVariable Long tagId,
             @Valid @RequestBody TagUpdateRequest request) {
@@ -70,7 +71,7 @@ public class TagController {
     
     @Operation(summary = "删除标签")
     @DeleteMapping("/{tagId}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<Void> deleteTag(@PathVariable Long tagId) {
         tagService.deleteTag(tagId);
         return Result.success();

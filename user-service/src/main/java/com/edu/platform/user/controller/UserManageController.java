@@ -12,7 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
+import com.edu.platform.common.annotation.RequireAdminOrLeader;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,7 +35,7 @@ public class UserManageController {
     
     @Operation(summary = "用户列表查询(分页)")
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireAdminOrLeader
     public Result<PageResult<UserManageResponse>> getUserList(
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String realName,
@@ -62,7 +62,7 @@ public class UserManageController {
     
     @Operation(summary = "用户详情查询")
     @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireAdminOrLeader
     public Result<UserManageResponse> getUserDetail(@PathVariable Long userId) {
         UserManageResponse response = userManageService.getUserDetail(userId);
         return Result.success(response);
@@ -70,7 +70,7 @@ public class UserManageController {
     
     @Operation(summary = "更新用户状态")
     @PutMapping("/{userId}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireAdminOrLeader
     public Result<Void> updateUserStatus(
             @PathVariable Long userId,
             @Valid @RequestBody UserStatusRequest request) {
@@ -80,7 +80,7 @@ public class UserManageController {
     
     @Operation(summary = "重置用户密码")
     @PostMapping("/{userId}/reset-password")
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireAdminOrLeader
     public Result<Map<String, Object>> resetPassword(@PathVariable Long userId) {
         String newPassword = userManageService.resetPassword(userId);
         
@@ -93,14 +93,14 @@ public class UserManageController {
     
     @Operation(summary = "下载用户导入模板")
     @GetMapping("/template")
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireAdminOrLeader
     public void downloadTemplate(HttpServletResponse response) {
         excelService.downloadUserTemplate(response);
     }
     
     @Operation(summary = "批量导入用户")
     @PostMapping("/import")
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireAdminOrLeader
     public Result<Map<String, Object>> importUsers(@RequestParam("file") MultipartFile file) {
         Map<String, Object> result = excelService.importUsers(file);
         return Result.success("导入完成", result);
@@ -108,7 +108,7 @@ public class UserManageController {
     
     @Operation(summary = "导出用户列表")
     @GetMapping("/export")
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireAdminOrLeader
     public void exportUsers(
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String realName,

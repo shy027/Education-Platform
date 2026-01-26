@@ -15,6 +15,7 @@ import com.edu.platform.course.entity.CourseChapter;
 import com.edu.platform.course.mapper.CourseChapterMapper;
 import com.edu.platform.course.service.ChapterService;
 import com.edu.platform.course.service.CourseService;
+import com.edu.platform.course.util.PermissionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -165,11 +166,11 @@ public class ChapterServiceImpl extends ServiceImpl<CourseChapterMapper, CourseC
     }
     
     /**
-     * 检查是否有管理权限（课程教师或管理员）
+     * 检查是否有管理权限（课程教师、校领导或管理员）
      */
     private boolean hasManagePermission(Long courseId, Long userId) {
-        // 管理员有权限
-        if (UserContext.hasRole("ADMIN")) {
+        // 管理员或校领导有权限
+        if (PermissionUtil.isAdminOrLeader()) {
             return true;
         }
         

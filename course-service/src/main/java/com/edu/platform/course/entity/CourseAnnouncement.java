@@ -32,9 +32,4 @@ public class CourseAnnouncement extends BaseEntity {
     private LocalDateTime publishTime;
     
     private Integer viewCount;
-    
-    /**
-     * 状态:0撤回,1发布
-     */
-    private Integer status;
 }

@@ -8,8 +8,8 @@ import com.edu.platform.resource.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import com.edu.platform.common.annotation.RequireAdminOrLeader;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,14 +41,14 @@ public class CategoryController {
     
     @Operation(summary = "创建分类")
     @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<Long> createCategory(@Valid @RequestBody CategoryCreateRequest request) {
         return Result.success(categoryService.createCategory(request));
     }
     
     @Operation(summary = "更新分类")
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<Void> updateCategory(
             @PathVariable Long id, 
             @Valid @RequestBody CategoryUpdateRequest request) {
@@ -58,7 +58,7 @@ public class CategoryController {
     
     @Operation(summary = "删除分类")
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @RequireAdminOrLeader
     public Result<Void> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return Result.success();
