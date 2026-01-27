@@ -80,4 +80,13 @@ public interface CourseMemberService extends IService<CourseMember> {
      * @param request  请求
      */
     void updateMemberRole(Long courseId, Long userId, UpdateMemberRoleRequest request);
+    
+    /**
+     * 检查用户是否是课程成员
+     *
+     * @param courseId 课程ID
+     * @param userId   用户ID
+     * @return 是否是成员
+     */
+    boolean isCourseMember(Long courseId, Long userId);
 }

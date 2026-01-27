@@ -1,5 +1,7 @@
 package com.edu.platform.course.util;
 
+import com.edu.platform.common.exception.BusinessException;
+import com.edu.platform.common.result.ResultCode;
 import com.edu.platform.course.context.UserContext;
 
 /**
@@ -51,5 +53,32 @@ public class PermissionUtil {
         }
         // 课程教师有权限
         return courseTeacherId != null && courseTeacherId.equals(currentUserId);
+    }
+    
+    /**
+     * 要求管理员或校领导权限，否则抛出异常
+     */
+    public static void requireAdminOrLeader() {
+        if (!isAdminOrLeader()) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "需要管理员或校领导权限");
+        }
+    }
+    
+    /**
+     * 要求教师或以上权限，否则抛出异常
+     */
+    public static void requireTeacherOrAbove() {
+        if (!isTeacherOrAbove()) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "需要教师或以上权限");
+        }
+    }
+    
+    /**
+     * 要求助教或以上权限，否则抛出异常
+     */
+    public static void requireAssistantOrAbove() {
+        if (!isAssistantOrAbove()) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "需要助教或以上权限");
+        }
     }
 }

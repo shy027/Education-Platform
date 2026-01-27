@@ -402,4 +402,13 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
         Course course = courseService.getById(courseId);
         return course != null && course.getTeacherId().equals(userId);
     }
+    
+    @Override
+    public boolean isCourseMember(Long courseId, Long userId) {
+        LambdaQueryWrapper<CourseMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CourseMember::getCourseId, courseId)
+               .eq(CourseMember::getUserId, userId)
+               .eq(CourseMember::getJoinStatus, 1); // 1表示已加入
+        return baseMapper.selectCount(wrapper) > 0;
+    }
 }
