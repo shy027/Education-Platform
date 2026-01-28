@@ -35,10 +35,12 @@ public class CoursewareProgressServiceImpl implements CoursewareProgressService 
     private final CoursewareProgressMapper progressMapper;
     private final CourseCoursewareMapper coursewareMapper;
     private final CourseMemberService memberService;
+    private final com.edu.platform.course.client.UserServiceClient userServiceClient;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void recordProgress(Long wareId, ProgressRecordRequest request, Long userId) {
+        // ... (省略原有代码)
         // 查询课件
         CourseCourseware courseware = coursewareMapper.selectById(wareId);
         if (courseware == null) {
@@ -108,9 +110,33 @@ public class CoursewareProgressServiceImpl implements CoursewareProgressService 
         Page<CoursewareProgress> progressPage = new Page<>(pageNum, pageSize);
         progressPage = progressMapper.selectPage(progressPage, wrapper);
         
+        // 批量获取用户信息
+        List<Long> userIds = progressPage.getRecords().stream()
+                .map(CoursewareProgress::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+                
+        java.util.Map<Long, com.edu.platform.course.dto.UserInfoDTO> userInfoMap = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) {
+            try {
+                com.edu.platform.common.result.Result<java.util.Map<Long, com.edu.platform.course.dto.UserInfoDTO>> result = 
+                        userServiceClient.batchGetUserInfo(userIds);
+                if (result.isSuccess() && result.getData() != null) {
+                    userInfoMap = result.getData();
+                }
+            } catch (Exception e) {
+                log.error("批量获取用户信息失败: {}", e.getMessage());
+            }
+        }
+        
         // 转换为响应对象
+        java.util.Map<Long, com.edu.platform.course.dto.UserInfoDTO> finalUserInfoMap = userInfoMap;
         List<StudentProgressResponse> responseList = progressPage.getRecords().stream()
-                .map(progress -> convertToStudentProgress(progress, courseware))
+                .map(progress -> {
+                    StudentProgressResponse response = convertToStudentProgress(progress, courseware);
+                    fillUserInfo(response, progress.getUserId(), finalUserInfoMap);
+                    return response;
+                })
                 .collect(Collectors.toList());
         
         // 构建分页响应
@@ -150,14 +176,33 @@ public class CoursewareProgressServiceImpl implements CoursewareProgressService 
         Page<CoursewareProgress> progressPage = new Page<>(pageNum, pageSize);
         progressPage = progressMapper.selectPage(progressPage, progressWrapper);
         
+        // 获取用户信息（单个）
+        com.edu.platform.course.dto.UserInfoDTO userInfo = null;
+        try {
+            com.edu.platform.common.result.Result<com.edu.platform.course.dto.UserInfoDTO> result = 
+                    userServiceClient.getUserInfo(userId);
+            if (result.isSuccess()) {
+                userInfo = result.getData();
+            }
+        } catch (Exception e) {
+            log.error("获取用户信息失败: userId={}, error={}", userId, e.getMessage());
+        }
+        
         // 转换为响应对象
+        final com.edu.platform.course.dto.UserInfoDTO finalUserInfo = userInfo;
         List<StudentProgressResponse> responseList = progressPage.getRecords().stream()
                 .map(progress -> {
                     CourseCourseware courseware = coursewares.stream()
                             .filter(w -> w.getId().equals(progress.getWareId()))
                             .findFirst()
                             .orElse(null);
-                    return convertToStudentProgress(progress, courseware);
+                    
+                    StudentProgressResponse response = convertToStudentProgress(progress, courseware);
+                    if (finalUserInfo != null) {
+                        response.setUserName(finalUserInfo.getRealName());
+                        response.setStudentNumber(finalUserInfo.getUsername());
+                    }
+                    return response;
                 })
                 .collect(Collectors.toList());
         
@@ -190,10 +235,24 @@ public class CoursewareProgressServiceImpl implements CoursewareProgressService 
             }
         }
         
-        // TODO: 通过OpenFeign获取用户姓名和学号
-        // response.setUserName(userName);
-        // response.setStudentNumber(studentNumber);
-        
         return response;
+    }
+    
+    /**
+     * 填充用户信息
+     */
+    private void fillUserInfo(StudentProgressResponse response, Long userId, 
+                             java.util.Map<Long, com.edu.platform.course.dto.UserInfoDTO> userInfoMap) {
+        if (userInfoMap != null && userInfoMap.containsKey(userId)) {
+            com.edu.platform.course.dto.UserInfoDTO userInfo = userInfoMap.get(userId);
+            if (userInfo != null) {
+                response.setUserName(userInfo.getRealName());
+                response.setStudentNumber(userInfo.getUsername());
+            }
+        } else {
+            // 默认值
+            response.setUserName("未知用户");
+            response.setStudentNumber("N/A");
+        }
     }
 }

@@ -127,4 +127,12 @@ public class UserManageController {
         excelService.exportUsers(request, response);
     }
     
+    @Operation(summary = "批量获取用户信息")
+    @PostMapping("/batch")
+    public Result<java.util.Map<Long, UserManageResponse>> batchGetUserInfo(
+            @RequestBody java.util.List<Long> userIds) {
+        java.util.Map<Long, UserManageResponse> result = userManageService.batchGetUserInfo(userIds);
+        return Result.success(result);
+    }
+    
 }

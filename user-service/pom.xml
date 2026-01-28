@@ -86,6 +86,7 @@
         </dependency>
         
         <!-- 容联云短信SDK - 暂时注释,使用模拟发送 -->
+        <!-- 容联云短信SDK - 暂时注释,使用模拟发送 -->
         <!--
         <dependency>
             <groupId>com.cloopen</groupId>
@@ -93,6 +94,12 @@
             <version>1.0.5</version>
         </dependency>
         -->
+        
+        <!-- Nacos 服务发现 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
         
     </dependencies>
     

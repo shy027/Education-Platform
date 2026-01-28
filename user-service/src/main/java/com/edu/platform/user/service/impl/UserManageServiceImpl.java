@@ -189,4 +189,21 @@ public class UserManageServiceImpl implements UserManageService {
         }).collect(Collectors.toList());
     }
     
+    @Override
+    public java.util.Map<Long, UserManageResponse> batchGetUserInfo(java.util.List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return new java.util.HashMap<>();
+        }
+        
+        // 批量查询用户
+        LambdaQueryWrapper<UserAccount> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserAccount::getId, userIds);
+        List<UserAccount> users = userAccountMapper.selectList(wrapper);
+        
+        // 转换为Map
+        return users.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toMap(UserManageResponse::getId, user -> user));
+    }
+    
 }

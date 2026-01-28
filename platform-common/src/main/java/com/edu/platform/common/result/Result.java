@@ -98,4 +98,11 @@ public class Result<T> implements Serializable {
         return new Result<>(resultCode.getCode(), resultCode.getMessage());
     }
     
+    /**
+     * 判断是否成功
+     */
+    public boolean isSuccess() {
+        return this.code != null && this.code.equals(ResultCode.SUCCESS.getCode());
+    }
+    
 }

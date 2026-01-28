@@ -57,4 +57,9 @@ public class CourseTask extends BaseEntity {
      * 状态:0草稿,1发布,2关闭
      */
     private Integer status;
+    
+    /**
+     * 组卷状态:0未组卷,1已发布
+     */
+    private Integer paperStatus;
 }

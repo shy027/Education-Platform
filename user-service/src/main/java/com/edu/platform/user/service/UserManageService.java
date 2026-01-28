@@ -43,4 +43,11 @@ public interface UserManageService {
      */
     String resetPassword(Long userId);
     
+    /**
+     * 批量获取用户信息
+     *
+     * @param userIds 用户ID列表
+     * @return 用户信息Map，key为userId
+     */
+    java.util.Map<Long, UserManageResponse> batchGetUserInfo(java.util.List<Long> userIds);
 }
