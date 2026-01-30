@@ -2,7 +2,7 @@ package com.edu.platform.course.interceptor;
 
 import cn.hutool.core.util.StrUtil;
 import com.edu.platform.common.utils.JwtUtil;
-import com.edu.platform.course.context.UserContext;
+import com.edu.platform.common.utils.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;

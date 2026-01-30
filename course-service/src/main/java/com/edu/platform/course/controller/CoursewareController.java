@@ -3,7 +3,7 @@ package com.edu.platform.course.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.common.annotation.RequireAdminOrLeader;
 import com.edu.platform.common.annotation.RequireTeacherOrAbove;
-import com.edu.platform.course.context.UserContext;
+import com.edu.platform.common.utils.UserContext;
 import com.edu.platform.common.result.Result;
 import com.edu.platform.course.dto.request.CoursewareQueryRequest;
 import com.edu.platform.course.dto.request.CoursewareUpdateRequest;

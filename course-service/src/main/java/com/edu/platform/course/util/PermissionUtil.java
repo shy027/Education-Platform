@@ -2,7 +2,7 @@ package com.edu.platform.course.util;
 
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.ResultCode;
-import com.edu.platform.course.context.UserContext;
+import com.edu.platform.common.utils.UserContext;
 
 /**
  * 权限工具类

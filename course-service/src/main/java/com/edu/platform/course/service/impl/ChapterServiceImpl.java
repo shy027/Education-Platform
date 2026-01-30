@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.ResultCode;
-import com.edu.platform.course.context.UserContext;
+import com.edu.platform.common.utils.UserContext;
 import com.edu.platform.course.dto.request.ChapterCreateRequest;
 import com.edu.platform.course.dto.request.ChapterUpdateRequest;
 import com.edu.platform.course.dto.response.ChapterTreeResponse;
