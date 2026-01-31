@@ -1,6 +1,7 @@
 package com.edu.platform.course.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -24,9 +25,10 @@ public class ExamStudentAnswer {
     private Long recordId;
 
     /**
-     * 题目ID
+     * 试卷题目ID (关联 course_task_question.id)
      */
-    private Long questionId;
+    @TableField("task_question_id")
+    private Long taskQuestionId;
 
     /**
      * 学生答案

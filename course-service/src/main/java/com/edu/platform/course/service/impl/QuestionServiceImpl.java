@@ -237,7 +237,7 @@ public class QuestionServiceImpl implements QuestionService {
             wrapper.eq(ExamQuestion::getChapterId, request.getChapterId());
         }
         if (request.getQuestionType() != null) {
-            wrapper.eq(ExamQuestion::getQuestionType, request.getQuestionType());
+            wrapper.eq(ExamQuestion::getType, request.getQuestionType());  // 使用实际字段 type
         }
         if (request.getDifficulty() != null) {
             wrapper.eq(ExamQuestion::getDifficulty, request.getDifficulty());
