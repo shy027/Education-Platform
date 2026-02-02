@@ -89,4 +89,13 @@ public interface CourseMemberService extends IService<CourseMember> {
      * @return 是否是成员
      */
     boolean isCourseMember(Long courseId, Long userId);
+    
+    /**
+     * 获取成员信息
+     *
+     * @param courseId 课程ID
+     * @param userId   用户ID
+     * @return 成员信息
+     */
+    MemberResponse getMemberInfo(Long courseId, Long userId);
 }

@@ -411,4 +411,40 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
                .eq(CourseMember::getJoinStatus, 1); // 1表示已加入
         return baseMapper.selectCount(wrapper) > 0;
     }
+    
+    @Override
+    public MemberResponse getMemberInfo(Long courseId, Long userId) {
+        // 先检查是否为课程创建者(主讲教师)
+        Course course = courseService.getById(courseId);
+        if (course != null && course.getTeacherId().equals(userId)) {
+            // 课程创建者直接返回主讲教师角色
+            MemberResponse response = new MemberResponse();
+            response.setUserId(userId);
+            response.setMemberRole(1); // 主讲教师
+            response.setJoinStatus(1); // 已加入
+            // TODO: 远程获取用户信息 (username, realName, avatar)
+            response.setUsername("User" + userId);
+            response.setRealName("Name" + userId);
+            return response;
+        }
+        
+        // 再查询course_member表
+        LambdaQueryWrapper<CourseMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CourseMember::getCourseId, courseId)
+               .eq(CourseMember::getUserId, userId)
+               .eq(CourseMember::getJoinStatus, 1); // 1表示已加入
+        
+        CourseMember member = baseMapper.selectOne(wrapper);
+        if (member == null) {
+            throw new BusinessException(ResultCode.FAIL.getCode(), "用户不是该课程成员");
+        }
+        
+        MemberResponse response = new MemberResponse();
+        BeanUtil.copyProperties(member, response);
+        // TODO: 远程获取用户信息 (username, realName, avatar)
+        response.setUsername("User" + member.getUserId());
+        response.setRealName("Name" + member.getUserId());
+        
+        return response;
+    }
 }

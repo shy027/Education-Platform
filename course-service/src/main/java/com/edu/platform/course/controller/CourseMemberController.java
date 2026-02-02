@@ -97,4 +97,13 @@ public class CourseMemberController {
         memberService.updateMemberRole(courseId, userId, request);
         return Result.success("修改成功", null);
     }
+    
+    @Operation(summary = "检查用户是否为课程成员")
+    @GetMapping("/{courseId}/members/check")
+    public Result<MemberResponse> checkCourseMember(
+            @PathVariable Long courseId,
+            @RequestParam Long userId) {
+        MemberResponse member = memberService.getMemberInfo(courseId, userId);
+        return Result.success(member);
+    }
 }
