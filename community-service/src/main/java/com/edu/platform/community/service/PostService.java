@@ -3,6 +3,7 @@ package com.edu.platform.community.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.community.dto.request.CreatePostRequest;
 import com.edu.platform.community.dto.request.PostQueryRequest;
+import com.edu.platform.community.dto.request.UpdatePostRequest;
 import com.edu.platform.community.dto.response.PostDetailResponse;
 
 /**
@@ -41,5 +42,41 @@ public interface PostService {
      * @return 话题详情
      */
     PostDetailResponse getPostDetail(Long postId);
+    
+    /**
+     * 编辑话题
+     * 
+     * @param postId 话题ID
+     * @param request 更新内容
+     * @param userId 用户ID
+     * @return 更新后的话题详情
+     */
+    PostDetailResponse updatePost(Long postId, UpdatePostRequest request, Long userId);
+    
+    /**
+     * 删除话题
+     * 
+     * @param postId 话题ID
+     * @param userId 用户ID
+     */
+    void deletePost(Long postId, Long userId);
+    
+    /**
+     * 置顶/取消置顶话题
+     * 
+     * @param postId 话题ID
+     * @param isTop 1:置顶, 0:取消置顶
+     * @param userId 用户ID
+     */
+    void toggleTop(Long postId, Integer isTop, Long userId);
+    
+    /**
+     * 设为精华/取消精华
+     * 
+     * @param postId 话题ID
+     * @param isEssence 1:精华, 0:取消精华
+     * @param userId 用户ID
+     */
+    void toggleEssence(Long postId, Integer isEssence, Long userId);
     
 }

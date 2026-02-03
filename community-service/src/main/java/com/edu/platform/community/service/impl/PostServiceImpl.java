@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.community.dto.request.CreatePostRequest;
 import com.edu.platform.community.dto.request.PostQueryRequest;
+import com.edu.platform.community.dto.request.UpdatePostRequest;
 import com.edu.platform.community.dto.response.PostDetailResponse;
 import com.edu.platform.community.entity.CommunityPost;
 import com.edu.platform.community.mapper.CommunityPostMapper;
@@ -182,6 +183,99 @@ public class PostServiceImpl implements PostService {
         }
         
         return response;
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PostDetailResponse updatePost(Long postId, UpdatePostRequest request, Long userId) {
+        log.info("编辑话题, postId={}, userId={}", postId, userId);
+        
+        // 1. 查询话题
+        CommunityPost post = postMapper.selectById(postId);
+        if (post == null) {
+            throw new BusinessException("话题不存在");
+        }
+        
+        // 2. 验证作者权限
+        if (!post.getUserId().equals(userId)) {
+            throw new BusinessException("只有作者可以编辑话题");
+        }
+        
+        // 3. 更新话题
+        post.setPostTitle(request.getPostTitle());
+        post.setPostContent(request.getPostContent());
+        post.setAttachmentUrls(request.getAttachmentUrls());
+        postMapper.updateById(post);
+        
+        log.info("话题编辑成功, postId={}", postId);
+        
+        // 4. 返回详情
+        return getPostDetail(postId);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePost(Long postId, Long userId) {
+        log.info("删除话题, postId={}, userId={}", postId, userId);
+        
+        // 1. 查询话题
+        CommunityPost post = postMapper.selectById(postId);
+        if (post == null) {
+            throw new BusinessException("话题不存在");
+        }
+        
+        // 2. 验证权限(作者或教师)
+        permissionUtil.checkAuthorOrTeacher(userId, post.getUserId(), post.getCourseId());
+        
+        // 3. 逻辑删除话题
+        postMapper.deleteById(postId);
+        
+        log.info("话题删除成功, postId={}", postId);
+        
+        // TODO: 级联删除所有观点
+        // TODO: 更新课程讨论数
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void toggleTop(Long postId, Integer isTop, Long userId) {
+        log.info("置顶话题, postId={}, isTop={}, userId={}", postId, isTop, userId);
+        
+        // 1. 查询话题
+        CommunityPost post = postMapper.selectById(postId);
+        if (post == null) {
+            throw new BusinessException("话题不存在");
+        }
+        
+        // 2. 验证教师权限
+        permissionUtil.checkTeacher(userId, post.getCourseId());
+        
+        // 3. 更新置顶状态
+        post.setIsTop(isTop);
+        postMapper.updateById(post);
+        
+        log.info("话题置顶状态更新成功, postId={}, isTop={}", postId, isTop);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void toggleEssence(Long postId, Integer isEssence, Long userId) {
+        log.info("设置精华, postId={}, isEssence={}, userId={}", postId, isEssence, userId);
+        
+        // 1. 查询话题
+        CommunityPost post = postMapper.selectById(postId);
+        if (post == null) {
+            throw new BusinessException("话题不存在");
+        }
+        
+        // 2. 验证教师权限
+        permissionUtil.checkTeacher(userId, post.getCourseId());
+        
+        // 3. 更新精华状态
+        post.setIsEssence(isEssence);
+        postMapper.updateById(post);
+        
+        log.info("话题精华状态更新成功, postId={}, isEssence={}", postId, isEssence);
     }
     
 }

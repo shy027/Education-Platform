@@ -68,4 +68,42 @@ public class PostController {
         return Result.success("查询成功", response);
     }
     
+    @Operation(summary = "编辑话题", description = "只有作者可以编辑话题")
+    @PutMapping("/{postId}")
+    public Result<PostDetailResponse> updatePost(
+            @PathVariable Long postId,
+            @Valid @RequestBody com.edu.platform.community.dto.request.UpdatePostRequest request) {
+        Long userId = UserContext.getUserId();
+        PostDetailResponse response = postService.updatePost(postId, request, userId);
+        return Result.success("编辑成功", response);
+    }
+    
+    @Operation(summary = "删除话题", description = "作者或教师可以删除话题")
+    @DeleteMapping("/{postId}")
+    public Result<Void> deletePost(@PathVariable Long postId) {
+        Long userId = UserContext.getUserId();
+        postService.deletePost(postId, userId);
+        return Result.success("删除成功", null);
+    }
+    
+    @Operation(summary = "置顶/取消置顶话题", description = "只有教师可以操作")
+    @PutMapping("/{postId}/top")
+    public Result<Void> toggleTop(
+            @PathVariable Long postId,
+            @RequestParam Integer isTop) {
+        Long userId = UserContext.getUserId();
+        postService.toggleTop(postId, isTop, userId);
+        return Result.success(isTop == 1 ? "置顶成功" : "取消置顶成功", null);
+    }
+    
+    @Operation(summary = "设为精华/取消精华", description = "只有教师可以操作")
+    @PutMapping("/{postId}/essence")
+    public Result<Void> toggleEssence(
+            @PathVariable Long postId,
+            @RequestParam Integer isEssence) {
+        Long userId = UserContext.getUserId();
+        postService.toggleEssence(postId, isEssence, userId);
+        return Result.success(isEssence == 1 ? "设为精华成功" : "取消精华成功", null);
+    }
+    
 }
