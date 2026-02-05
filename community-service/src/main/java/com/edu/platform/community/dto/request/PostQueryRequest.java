@@ -12,8 +12,11 @@ import lombok.Data;
 @Schema(description = "帖子查询请求")
 public class PostQueryRequest {
     
-    @Schema(description = "课程ID", required = true)
+    @Schema(description = "课程ID", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private Long courseId;
+    
+    @Schema(description = "用户ID(用于查询我的帖子)")
+    private Long userId;
     
     @Schema(description = "关键词搜索(标题或内容)")
     private String keyword;

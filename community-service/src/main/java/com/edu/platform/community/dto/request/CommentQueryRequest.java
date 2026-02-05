@@ -12,8 +12,11 @@ import lombok.Data;
 @Schema(description = "观点查询请求")
 public class CommentQueryRequest {
     
-    @Schema(description = "话题ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "话题ID", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private Long postId;
+    
+    @Schema(description = "用户ID(用于查询我的观点)")
+    private Long userId;
     
     @Schema(description = "父评论id(查询子评论时使用)")
     private Long parentId;

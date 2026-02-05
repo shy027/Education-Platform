@@ -61,6 +61,39 @@ public class PostController {
         return Result.success("查询成功", page);
     }
     
+    @Operation(summary = "我的帖子")
+    @GetMapping("/my")
+    public Result<Page<PostDetailResponse>> listMyPosts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = UserContext.getUserId();
+        PostQueryRequest request = new PostQueryRequest();
+        request.setUserId(userId);
+        request.setKeyword(keyword);
+        request.setPageNum(pageNum);
+        request.setPageSize(pageSize);
+        
+        Page<PostDetailResponse> page = postService.listPosts(request);
+        return Result.success("查询成功", page);
+    }
+    
+    @Operation(summary = "我的点赞")
+    @GetMapping("/my/likes")
+    public Result<Page<PostDetailResponse>> listMyLikedPosts(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = UserContext.getUserId();
+        PostQueryRequest request = new PostQueryRequest();
+        request.setPageNum(pageNum);
+        request.setPageSize(pageSize);
+        
+        Page<PostDetailResponse> page = postService.listMyLikedPosts(request, userId);
+        return Result.success("查询成功", page);
+    }
+    
     @Operation(summary = "帖子详情")
     @GetMapping("/{postId}")
     public Result<PostDetailResponse> getPostDetail(@PathVariable Long postId) {

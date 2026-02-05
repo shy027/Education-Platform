@@ -36,6 +36,15 @@ public interface PostService {
     Page<PostDetailResponse> listPosts(PostQueryRequest request);
     
     /**
+     * 查询我的点赞
+     *
+     * @param request 分页参数
+     * @param userId 用户ID
+     * @return 分页结果
+     */
+    Page<PostDetailResponse> listMyLikedPosts(PostQueryRequest request, Long userId);
+    
+    /**
      * 话题详情
      * 
      * @param postId 话题ID

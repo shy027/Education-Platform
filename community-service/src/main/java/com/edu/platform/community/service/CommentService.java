@@ -35,6 +35,15 @@ public interface CommentService {
     Page<CommentDetailResponse> listComments(CommentQueryRequest request);
     
     /**
+     * 查询我的观点
+     *
+     * @param request 分页参数
+     * @param userId 用户ID
+     * @return 分页结果
+     */
+    Page<CommentDetailResponse> listMyComments(CommentQueryRequest request, Long userId);
+    
+    /**
      * 删除观点
      * 
      * @param commentId 观点ID

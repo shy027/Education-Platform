@@ -98,6 +98,7 @@ public class PostServiceImpl implements PostService {
         // 构建查询条件
         LambdaQueryWrapper<CommunityPost> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(request.getCourseId() != null, CommunityPost::getCourseId, request.getCourseId())
+               .eq(request.getUserId() != null, CommunityPost::getUserId, request.getUserId()) // 增加用户ID筛选
                .eq(request.getIsTop() != null, CommunityPost::getIsTop, request.getIsTop())
                .eq(request.getIsEssence() != null, CommunityPost::getIsEssence, request.getIsEssence())
                .eq(CommunityPost::getStatus, 1) // 只查询正常状态
@@ -127,6 +128,34 @@ public class PostServiceImpl implements PostService {
         return responsePage;
     }
     
+    @Override
+    public Page<PostDetailResponse> listMyLikedPosts(PostQueryRequest request, Long userId) {
+        log.info("查询我的点赞, userId={}, pageNum={}, pageSize={}", userId, request.getPageNum(), request.getPageSize());
+        
+        // 构建查询条件
+        LambdaQueryWrapper<CommunityPost> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CommunityPost::getStatus, 1)
+               .eq(CommunityPost::getAuditStatus, 1)
+               // 使用子查询: id IN (SELECT post_id FROM community_post_like WHERE user_id = ?)
+               .inSql(CommunityPost::getId, "SELECT post_id FROM community_post_like WHERE user_id = " + userId)
+               .orderByDesc(CommunityPost::getCreatedTime);
+        
+        // 分页查询
+        Page<CommunityPost>page = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<CommunityPost> postPage = postMapper.selectPage(page, wrapper);
+        
+        // 转换为响应DTO
+        Page<PostDetailResponse> responsePage = new Page<>();
+        BeanUtils.copyProperties(postPage, responsePage, "records");
+        responsePage.setRecords(
+            postPage.getRecords().stream()
+                .map(this::convertToResponse)
+                .toList()
+        );
+        
+        return responsePage;
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PostDetailResponse getPostDetail(Long postId) {

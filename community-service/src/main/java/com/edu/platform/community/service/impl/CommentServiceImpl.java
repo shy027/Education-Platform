@@ -170,6 +170,32 @@ public class CommentServiceImpl implements CommentService {
         
         return page;
     }
+
+    @Override
+    public Page<CommentDetailResponse> listMyComments(CommentQueryRequest request, Long userId) {
+        log.info("查询我的观点, userId={}, pageNum={}, pageSize={}", userId, request.getPageNum(), request.getPageSize());
+        
+        // 构建查询条件
+        LambdaQueryWrapper<CommunityComment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CommunityComment::getUserId, userId)
+               .eq(CommunityComment::getStatus, 1)
+               .orderByDesc(CommunityComment::getCreatedTime);
+        
+        // 分页查询
+        Page<CommunityComment> page = new Page<>(request.getPageNum(), request.getPageSize());
+        Page<CommunityComment> commentPage = commentMapper.selectPage(page, wrapper);
+        
+        // 转换为响应DTO (扁平结构)
+        Page<CommentDetailResponse> responsePage = new Page<>();
+        BeanUtils.copyProperties(commentPage, responsePage, "records");
+        responsePage.setRecords(
+            commentPage.getRecords().stream()
+                .map(this::convertToResponse)
+                .toList()
+        );
+        
+        return responsePage;
+    }
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -203,7 +229,7 @@ public class CommentServiceImpl implements CommentService {
                 List<Long> replyIds = replies.stream()
                     .map(CommunityComment::getId)
                     .collect(Collectors.toList());
-                commentMapper.deleteBatchIds(replyIds);
+                commentMapper.deleteByIds(replyIds);
                 
                 log.info("级联删除{}条二级回复", replies.size());
             }

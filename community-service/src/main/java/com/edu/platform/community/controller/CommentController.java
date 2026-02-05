@@ -57,6 +57,21 @@ public class CommentController {
         return Result.success("查询成功", page);
     }
     
+    @Operation(summary = "我的观点")
+    @GetMapping("/my")
+    public Result<Page<CommentDetailResponse>> listMyComments(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = UserContext.getUserId();
+        CommentQueryRequest request = new CommentQueryRequest();
+        request.setPageNum(pageNum);
+        request.setPageSize(pageSize);
+        
+        Page<CommentDetailResponse> page = commentService.listMyComments(request, userId);
+        return Result.success("查询成功", page);
+    }
+    
     @Operation(summary = "删除观点", description = "删除自己的观点或教师删除任何观点")
     @DeleteMapping("/{commentId}")
     public Result<Void> deleteComment(@PathVariable Long commentId) {
