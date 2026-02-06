@@ -29,6 +29,11 @@ public class CommunityPost extends BaseEntity {
     private Long courseId;
     
     /**
+     * 小组ID(NULL表示课程讨论,非NULL表示小组讨论)
+     */
+    private Long groupId;
+    
+    /**
      * 发帖人ID
      */
     private Long userId;

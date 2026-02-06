@@ -40,7 +40,6 @@ public class CoursewareProgressServiceImpl implements CoursewareProgressService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void recordProgress(Long wareId, ProgressRecordRequest request, Long userId) {
-        // ... (省略原有代码)
         // 查询课件
         CourseCourseware courseware = coursewareMapper.selectById(wareId);
         if (courseware == null) {
