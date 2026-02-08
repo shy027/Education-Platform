@@ -3,6 +3,8 @@ package com.edu.platform.community.client;
 import com.edu.platform.common.result.Result;
 import com.edu.platform.community.dto.response.UserInfoDTO;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -22,5 +24,11 @@ public interface UserServiceClient {
      */
     @PostMapping("/batch")
     Result<Map<Long, UserInfoDTO>> batchGetUserInfo(@RequestBody List<Long> userIds);
+    
+    /**
+     * 获取单个用户信息
+     */
+    @GetMapping("/{userId}")
+    Result<UserInfoDTO> getUserById(@PathVariable("userId") Long userId);
     
 }

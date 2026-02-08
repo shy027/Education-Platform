@@ -34,6 +34,11 @@ public class CommunityGroup {
     private String groupName;
     
     /**
+     * 环信群组ID
+     */
+    private String easemobGroupId;
+    
+    /**
      * 小组简介
      */
     private String groupIntro;

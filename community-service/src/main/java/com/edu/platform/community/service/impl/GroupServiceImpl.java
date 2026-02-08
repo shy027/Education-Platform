@@ -56,6 +56,9 @@ public class GroupServiceImpl implements GroupService {
     @Autowired(required = false)
     private UserServiceClient userServiceClient;
     
+    @Autowired(required = false)
+    private com.edu.platform.community.service.EasemobImService easemobImService;
+    
     @Override
     @Transactional(rollbackFor = Exception.class)
     public GroupDetailResponse createGroup(CreateGroupRequest request, Long userId) {
@@ -81,6 +84,27 @@ public class GroupServiceImpl implements GroupService {
         group.setIsDeleted(0);
         
         groupMapper.insert(group);
+        
+        // 3. 创建环信群组
+        if (easemobImService != null) {
+            try {
+                String easemobGroupId = easemobImService.createGroup(
+                    request.getGroupName(),
+                    request.getGroupIntro() != null ? request.getGroupIntro() : "",
+                    String.valueOf(userId),  // 群主
+                    List.of()                // 初始成员为空,后续加入时再添加
+                );
+                
+                // 保存环信群组ID
+                group.setEasemobGroupId(easemobGroupId);
+                groupMapper.updateById(group);
+                
+                log.info("创建环信群组成功, groupId={}, easemobGroupId={}", group.getId(), easemobGroupId);
+            } catch (Exception e) {
+                log.error("创建环信群组失败, groupId={}", group.getId(), e);
+                // 不影响主流程,继续执行
+            }
+        }
         
         // 4. 自动将创建者加入小组(已审批通过)
         CommunityGroupMember member = new CommunityGroupMember();

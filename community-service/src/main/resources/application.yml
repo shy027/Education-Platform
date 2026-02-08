@@ -39,6 +39,33 @@ spring:
           max-wait: -1
           max-idle: 8
           min-idle: 0
+  
+  servlet:
+    multipart:
+      max-file-size: -1
+      max-request-size: -1
+  
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+# 环信IM配置
+easemob:
+  app-key: ${EASEMOB_APP_KEY}
+  client-id: ${EASEMOB_CLIENT_ID}
+  client-secret: ${EASEMOB_CLIENT_SECRET}
+  org-name: ${EASEMOB_ORG_NAME}
+  app-name: ${EASEMOB_APP_NAME}
+  rest-api:
+    base-url: https://a1.easemob.com
+    timeout: 30000
+  group:
+    max-members: 200
+    allow-invite: true
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
