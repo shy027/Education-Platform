@@ -65,8 +65,8 @@ public class GroupDocumentServiceImpl implements GroupDocumentService {
             throw new BusinessException("小组不存在");
         }
         
-        // 2. 验证用户权限(小组成员或教师)
-        permissionUtil.checkGroupMemberOrTeacher(userId, groupId, group.getCourseId());
+        // 2. 验证用户权限(仅教师可创建文档)
+        permissionUtil.checkTeacher(userId, group.getCourseId());
         
         // 3. 创建文档
         GroupDocument document = new GroupDocument();

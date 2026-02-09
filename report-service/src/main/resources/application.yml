@@ -4,36 +4,61 @@ server:
 spring:
   application:
     name: report-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
   
   datasource:
-    type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/education_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root
-    password: root123
+    password: password
     
-    druid:
-      initial-size: 5
-      min-idle: 5
-      max-active: 20
+    # HikariCP连接池配置
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
   
   data:
     redis:
       host: localhost
       port: 6379
+      password:
       database: 0
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1
+          max-idle: 8
+          min-idle: 0
   
+  # RabbitMQ配置
   rabbitmq:
     host: localhost
     port: 5672
     username: guest
     password: guest
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: manual
+        concurrency: 5
+        max-concurrency: 10
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.edu.platform.report.entity
   configuration:
     map-underscore-to-camel-case: true
+    cache-enabled: false
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
@@ -42,7 +67,25 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+# Knife4j配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
 knife4j:
   enable: true
   setting:
     language: zh_cn
+
+
+# 线程池配置
+task:
+  pool:
+    core-size: 5
+    max-size: 10
+    queue-capacity: 100
+    keep-alive-seconds: 60
