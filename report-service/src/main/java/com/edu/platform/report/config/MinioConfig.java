@@ -1,13 +1,12 @@
 package com.edu.platform.report.config;
 
-import io.minio.MinioClient;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * MinIO配置
+ * 注: 实际项目使用阿里云OSS,此配置暂时保留但不启用
  *
  * @author Education Platform
  */
@@ -21,12 +20,13 @@ public class MinioConfig {
     private String secretKey;
     private String bucketName;
     
-    @Bean
-    public MinioClient minioClient() {
-        return MinioClient.builder()
-                .endpoint(endpoint)
-                .credentials(accessKey, secretKey)
-                .build();
-    }
+    // TODO: Day 6 使用阿里云OSS替代MinIO
+    // @Bean
+    // public MinioClient minioClient() {
+    //     return MinioClient.builder()
+    //             .endpoint(endpoint)
+    //             .credentials(accessKey, secretKey)
+    //             .build();
+    // }
     
 }

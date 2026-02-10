@@ -81,6 +81,14 @@ knife4j:
   setting:
     language: zh_cn
 
+# 阿里云OSS配置
+aliyun:
+  oss:
+    endpoint: oss-cn-nanjing.aliyuncs.com
+    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID}
+    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
+    bucket-name: class-practice
+    folder: education/reports
 
 # 线程池配置
 task:
