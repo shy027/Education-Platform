@@ -2,6 +2,9 @@ package com.edu.platform.report.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.edu.platform.report.calculator.ProfileCalculator;
+import com.edu.platform.report.dto.response.GrowthTrackResponse;
+import com.edu.platform.report.dto.response.RadarDataResponse;
+import com.edu.platform.report.dto.response.StatisticsResponse;
 import com.edu.platform.report.entity.BehaviorLog;
 import com.edu.platform.report.entity.ProfileHistory;
 import com.edu.platform.report.entity.StudentProfile;
@@ -211,6 +214,192 @@ public class ProfileServiceImpl implements ProfileService {
             // 插入新快照
             profileHistoryMapper.insert(history);
         }
+    }
+    
+    @Override
+    public RadarDataResponse getRadarData(Long userId, Long courseId) {
+        StudentProfile profile = studentProfileMapper.selectOne(
+            new LambdaQueryWrapper<StudentProfile>()
+                .eq(StudentProfile::getUserId, userId)
+                .eq(StudentProfile::getCourseId, courseId)
+        );
+        
+        if (profile == null) {
+            return null;
+        }
+        
+        RadarDataResponse response = new RadarDataResponse();
+        response.setUserId(userId);
+        response.setCourseId(courseId);
+        response.setTotalScore(profile.getTotalScore());
+        response.setLevel(profile.getLevel());
+        response.setGrowthTrend(profile.getGrowthTrend());
+        response.setUpdatedTime(profile.getUpdatedTime());
+        
+        // 构建五维度数据
+        List<RadarDataResponse.DimensionData> dimensions = new java.util.ArrayList<>();
+        dimensions.add(new RadarDataResponse.DimensionData("价值观认同", profile.getDimension1Score()));
+        dimensions.add(new RadarDataResponse.DimensionData("思想品德", profile.getDimension2Score()));
+        dimensions.add(new RadarDataResponse.DimensionData("社会责任", profile.getDimension3Score()));
+        dimensions.add(new RadarDataResponse.DimensionData("创新精神", profile.getDimension4Score()));
+        dimensions.add(new RadarDataResponse.DimensionData("团队协作", profile.getDimension5Score()));
+        response.setDimensions(dimensions);
+        
+        return response;
+    }
+    
+    @Override
+    public GrowthTrackResponse getGrowthTrack(Long userId, Long courseId, Integer days) {
+        if (days == null || days <= 0) {
+            days = 30;
+        }
+        
+        // 查询历史快照
+        LocalDate startDate = LocalDate.now().minusDays(days - 1);
+        List<ProfileHistory> historyList = profileHistoryMapper.selectList(
+            new LambdaQueryWrapper<ProfileHistory>()
+                .eq(ProfileHistory::getUserId, userId)
+                .eq(ProfileHistory::getCourseId, courseId)
+                .ge(ProfileHistory::getSnapshotDate, startDate)
+                .orderByAsc(ProfileHistory::getSnapshotDate)
+        );
+        
+        GrowthTrackResponse response = new GrowthTrackResponse();
+        response.setUserId(userId);
+        response.setCourseId(courseId);
+        
+        // 构建轨迹数据点
+        List<GrowthTrackResponse.TrackPoint> trackData = new java.util.ArrayList<>();
+        for (ProfileHistory history : historyList) {
+            GrowthTrackResponse.TrackPoint point = new GrowthTrackResponse.TrackPoint();
+            point.setDate(history.getSnapshotDate());
+            point.setTotalScore(history.getTotalScore());
+            point.setDimension1Score(history.getDimension1Score());
+            point.setDimension2Score(history.getDimension2Score());
+            point.setDimension3Score(history.getDimension3Score());
+            point.setDimension4Score(history.getDimension4Score());
+            point.setDimension5Score(history.getDimension5Score());
+            trackData.add(point);
+        }
+        response.setTrackData(trackData);
+        
+        // 计算成长趋势和进步幅度
+        if (trackData.size() >= 2) {
+            BigDecimal firstScore = trackData.get(0).getTotalScore();
+            BigDecimal lastScore = trackData.get(trackData.size() - 1).getTotalScore();
+            BigDecimal improvement = lastScore.subtract(firstScore);
+            
+            response.setImprovement(improvement);
+            if (improvement.compareTo(BigDecimal.ZERO) > 0) {
+                response.setTrend("上升");
+            } else if (improvement.compareTo(BigDecimal.ZERO) < 0) {
+                response.setTrend("下降");
+            } else {
+                response.setTrend("稳定");
+            }
+        } else {
+            response.setTrend("稳定");
+            response.setImprovement(BigDecimal.ZERO);
+        }
+        
+        return response;
+    }
+    
+    @Override
+    public StatisticsResponse getStatistics(Long userId, Long courseId, Integer days) {
+        if (days == null || days <= 0) {
+            days = 30;
+        }
+        
+        // 查询行为记录
+        LocalDateTime startTime = LocalDateTime.now().minusDays(days);
+        List<BehaviorLog> behaviorLogs = behaviorLogMapper.selectList(
+            new LambdaQueryWrapper<BehaviorLog>()
+                .eq(BehaviorLog::getUserId, userId)
+                .eq(BehaviorLog::getCourseId, courseId)
+                .ge(BehaviorLog::getCreatedTime, startTime)
+                .orderByDesc(BehaviorLog::getCreatedTime)
+        );
+        
+        StatisticsResponse response = new StatisticsResponse();
+        response.setUserId(userId);
+        response.setCourseId(courseId);
+        
+        // 设置统计周期
+        StatisticsResponse.Period period = new StatisticsResponse.Period();
+        period.setStartDate(startTime.toLocalDate());
+        period.setEndDate(LocalDate.now());
+        period.setDays(days);
+        response.setPeriod(period);
+        
+        // 按行为类型分组统计
+        Map<String, StatisticsResponse.BehaviorStat> behaviorStats = new HashMap<>();
+        Map<String, List<BehaviorLog>> groupedLogs = new HashMap<>();
+        
+        for (BehaviorLog log : behaviorLogs) {
+            String behaviorType = log.getBehaviorType();
+            groupedLogs.computeIfAbsent(behaviorType, k -> new java.util.ArrayList<>()).add(log);
+        }
+        
+        for (Map.Entry<String, List<BehaviorLog>> entry : groupedLogs.entrySet()) {
+            String behaviorType = entry.getKey();
+            List<BehaviorLog> logs = entry.getValue();
+            
+            StatisticsResponse.BehaviorStat stat = new StatisticsResponse.BehaviorStat();
+            stat.setCount(logs.size());
+            
+            // 根据行为类型计算不同的统计数据
+            if ("VIEW_COURSEWARE".equals(behaviorType) || "VIEW_CASE".equals(behaviorType)) {
+                int totalDuration = logs.stream()
+                    .filter(log -> log.getDurationSeconds() != null)
+                    .mapToInt(BehaviorLog::getDurationSeconds)
+                    .sum();
+                stat.setTotalDuration(totalDuration);
+            }
+            
+            behaviorStats.put(behaviorType, stat);
+        }
+        response.setBehaviorStats(behaviorStats);
+        
+        // 计算汇总数据
+        StatisticsResponse.Summary summary = new StatisticsResponse.Summary();
+        summary.setTotalBehaviors(behaviorLogs.size());
+        
+        // 计算活跃天数
+        long activeDays = behaviorLogs.stream()
+            .map(log -> log.getCreatedTime().toLocalDate())
+            .distinct()
+            .count();
+        summary.setActiveDays((int) activeDays);
+        
+        // 计算日均行为次数
+        if (activeDays > 0) {
+            summary.setAvgDailyBehaviors((double) behaviorLogs.size() / activeDays);
+        } else {
+            summary.setAvgDailyBehaviors(0.0);
+        }
+        
+        // 计算最活跃时段
+        Map<Integer, Long> hourCounts = behaviorLogs.stream()
+            .collect(java.util.stream.Collectors.groupingBy(
+                log -> log.getCreatedTime().getHour(),
+                java.util.stream.Collectors.counting()
+            ));
+        
+        if (!hourCounts.isEmpty()) {
+            summary.setMostActiveHour(
+                hourCounts.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(Map.Entry::getKey)
+                    .orElse(0)
+            );
+        } else {
+            summary.setMostActiveHour(0);
+        }
+        
+        response.setSummary(summary);
+        
+        return response;
     }
     
 }

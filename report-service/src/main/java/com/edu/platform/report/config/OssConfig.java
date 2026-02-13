@@ -2,8 +2,7 @@ package com.edu.platform.report.config;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,20 +11,18 @@ import org.springframework.context.annotation.Configuration;
  *
  * @author Education Platform
  */
-@Data
 @Configuration
-@ConfigurationProperties(prefix = "aliyun.oss")
+@RequiredArgsConstructor
 public class OssConfig {
     
-    private String endpoint;
-    private String accessKeyId;
-    private String accessKeySecret;
-    private String bucketName;
-    private String folder;
+    private final AliyunOssProperties ossProperties;
     
     @Bean
     public OSS ossClient() {
-        return new OSSClientBuilder().build(endpoint, accessKeyId, accessKeySecret);
+        return new OSSClientBuilder().build(
+            ossProperties.getEndpoint(),
+            ossProperties.getAccessKeyId(),
+            ossProperties.getAccessKeySecret()
+        );
     }
-    
 }
