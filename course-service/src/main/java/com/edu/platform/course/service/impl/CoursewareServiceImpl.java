@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.ResultCode;
 import com.edu.platform.course.util.PermissionUtil;
+import com.edu.platform.course.dto.internal.CoursewareInfoDTO;
 import com.edu.platform.course.dto.request.CoursewareQueryRequest;
 import com.edu.platform.course.dto.request.CoursewareUpdateRequest;
 import com.edu.platform.course.dto.request.CoursewareUploadRequest;
@@ -261,5 +262,41 @@ public class CoursewareServiceImpl implements CoursewareService {
         // TODO: 通过OpenFeign获取创建者和审核人姓名
         
         return response;
+    }
+    
+    @Override
+    public void updateAuditStatus(Long coursewareId, Integer auditStatus) {
+        CourseCourseware courseware = coursewareMapper.selectById(coursewareId);
+        if (courseware == null) {
+            throw new BusinessException("课件不存在");
+        }
+        
+        CourseCourseware updateEntity = new CourseCourseware();
+        updateEntity.setId(coursewareId);
+        updateEntity.setAuditStatus(auditStatus);
+        updateEntity.setAuditTime(LocalDateTime.now());
+        
+        coursewareMapper.updateById(updateEntity);
+        
+        log.info("更新课件审核状态: coursewareId={}, auditStatus={}", coursewareId, auditStatus);
+    }
+    
+    @Override
+    public CoursewareInfoDTO getCoursewareInfo(Long coursewareId) {
+        CourseCourseware courseware = coursewareMapper.selectById(coursewareId);
+        if (courseware == null) {
+            throw new BusinessException("课件不存在");
+        }
+        
+        CoursewareInfoDTO dto = new CoursewareInfoDTO();
+        dto.setId(courseware.getId());
+        dto.setTitle(courseware.getWareTitle());
+        dto.setDescription(courseware.getDescription());
+        dto.setCreatorId(courseware.getCreatorId());
+        
+        // TODO: 通过OpenFeign获取创建者姓名
+        dto.setCreatorName("用户" + courseware.getCreatorId());
+        
+        return dto;
     }
 }

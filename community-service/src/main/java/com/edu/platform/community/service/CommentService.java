@@ -1,6 +1,7 @@
 package com.edu.platform.community.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.edu.platform.community.dto.internal.CommentInfoDTO;
 import com.edu.platform.community.dto.request.CommentQueryRequest;
 import com.edu.platform.community.dto.request.CreateCommentRequest;
 import com.edu.platform.community.dto.response.CommentDetailResponse;
@@ -50,5 +51,15 @@ public interface CommentService {
      * @param userId 操作者ID
      */
     void deleteComment(Long commentId, Long userId);
+    
+    /**
+     * 更新审核状态(内部调用)
+     */
+    void updateAuditStatus(Long commentId, Integer auditStatus);
+    
+    /**
+     * 获取评论信息(内部调用)
+     */
+    CommentInfoDTO getCommentInfo(Long commentId);
     
 }

@@ -310,4 +310,36 @@ public class CommentServiceImpl implements CommentService {
         return response;
     }
     
+    @Override
+    public void updateAuditStatus(Long commentId, Integer auditStatus) {
+        CommunityComment comment = commentMapper.selectById(commentId);
+        if (comment == null) {
+            throw new BusinessException("评论不存在");
+        }
+        
+        comment.setAuditStatus(auditStatus);
+        commentMapper.updateById(comment);
+        
+        log.info("更新评论审核状态: commentId={}, auditStatus={}", commentId, auditStatus);
+    }
+    
+    @Override
+    public com.edu.platform.community.dto.internal.CommentInfoDTO getCommentInfo(Long commentId) {
+        CommunityComment comment = commentMapper.selectById(commentId);
+        if (comment == null) {
+            throw new BusinessException("评论不存在");
+        }
+        
+        com.edu.platform.community.dto.internal.CommentInfoDTO dto = 
+            new com.edu.platform.community.dto.internal.CommentInfoDTO();
+        dto.setId(comment.getId());
+        dto.setContent(comment.getCommentContent());
+        dto.setAuthorId(comment.getUserId());
+        
+        // TODO: 通过OpenFeign获取作者姓名
+        dto.setAuthorName("用户" + comment.getUserId());
+        
+        return dto;
+    }
+    
 }

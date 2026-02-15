@@ -307,4 +307,37 @@ public class PostServiceImpl implements PostService {
         log.info("话题精华状态更新成功, postId={}, isEssence={}", postId, isEssence);
     }
     
+    @Override
+    public void updateAuditStatus(Long postId, Integer auditStatus) {
+        CommunityPost post = postMapper.selectById(postId);
+        if (post == null) {
+            throw new BusinessException("帖子不存在");
+        }
+        
+        post.setAuditStatus(auditStatus);
+        postMapper.updateById(post);
+        
+        log.info("更新帖子审核状态: postId={}, auditStatus={}", postId, auditStatus);
+    }
+    
+    @Override
+    public com.edu.platform.community.dto.internal.PostInfoDTO getPostInfo(Long postId) {
+        CommunityPost post = postMapper.selectById(postId);
+        if (post == null) {
+            throw new BusinessException("帖子不存在");
+        }
+        
+        com.edu.platform.community.dto.internal.PostInfoDTO dto = 
+            new com.edu.platform.community.dto.internal.PostInfoDTO();
+        dto.setId(post.getId());
+        dto.setTitle(post.getPostTitle());
+        dto.setContent(post.getPostContent());
+        dto.setAuthorId(post.getUserId());
+        
+        // TODO: 通过OpenFeign获取作者姓名
+        dto.setAuthorName("用户" + post.getUserId());
+        
+        return dto;
+    }
+    
 }

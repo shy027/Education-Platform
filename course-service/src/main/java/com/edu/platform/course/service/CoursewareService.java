@@ -1,6 +1,7 @@
 package com.edu.platform.course.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.edu.platform.course.dto.internal.CoursewareInfoDTO;
 import com.edu.platform.course.dto.request.CoursewareQueryRequest;
 import com.edu.platform.course.dto.request.CoursewareUpdateRequest;
 import com.edu.platform.course.dto.request.CoursewareUploadRequest;
@@ -43,4 +44,14 @@ public interface CoursewareService {
      * 审核课件
      */
     void auditCourseware(Long wareId, Integer auditStatus, Long auditorId);
+    
+    /**
+     * 更新审核状态(内部调用)
+     */
+    void updateAuditStatus(Long coursewareId, Integer auditStatus);
+    
+    /**
+     * 获取课件信息(内部调用)
+     */
+    CoursewareInfoDTO getCoursewareInfo(Long coursewareId);
 }

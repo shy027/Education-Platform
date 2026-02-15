@@ -1,6 +1,7 @@
 package com.edu.platform.community.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.edu.platform.community.dto.internal.PostInfoDTO;
 import com.edu.platform.community.dto.request.CreatePostRequest;
 import com.edu.platform.community.dto.request.PostQueryRequest;
 import com.edu.platform.community.dto.request.UpdatePostRequest;
@@ -87,5 +88,15 @@ public interface PostService {
      * @param userId 用户ID
      */
     void toggleEssence(Long postId, Integer isEssence, Long userId);
+    
+    /**
+     * 更新审核状态(内部调用)
+     */
+    void updateAuditStatus(Long postId, Integer auditStatus);
+    
+    /**
+     * 获取帖子信息(内部调用)
+     */
+    PostInfoDTO getPostInfo(Long postId);
     
 }
