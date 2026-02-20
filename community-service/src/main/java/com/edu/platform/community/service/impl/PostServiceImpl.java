@@ -15,6 +15,7 @@ import com.edu.platform.community.dto.response.UserInfoDTO;
 import com.edu.platform.community.service.PostService;
 import com.edu.platform.community.util.PermissionUtil;
 import com.edu.platform.common.result.Result;
+import com.edu.platform.community.mq.AuditRequestSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -43,6 +44,9 @@ public class PostServiceImpl implements PostService {
     
     @Autowired(required = false)
     private UserServiceClient userServiceClient;
+    
+    @Autowired(required = false)
+    private AuditRequestSender auditRequestSender;
     
     @Autowired
     public PostServiceImpl(CommunityPostMapper postMapper, PermissionUtil permissionUtil) {
@@ -76,6 +80,16 @@ public class PostServiceImpl implements PostService {
         
         // 保存到数据库
         postMapper.insert(post);
+        
+        // 发送审核记录消息（教师帖子默认通过）
+        if (auditRequestSender != null) {
+            auditRequestSender.sendPostAuditRequest(
+                    post.getId(),
+                    userId,
+                    request.getPostTitle(),
+                    request.getPostContent()
+            );
+        }
         
         log.info("讨论话题创建成功, postId={}", post.getId());
         

@@ -15,4 +15,7 @@ public class UpdateAuditStatusRequest {
     @Schema(description = "审核状态: 1-通过, 2-拒绝")
     private Integer auditStatus;
     
+    @Schema(description = "审核人ID")
+    private Long auditorId;
+    
 }

@@ -16,6 +16,7 @@ import com.edu.platform.community.dto.response.UserInfoDTO;
 import com.edu.platform.community.service.CommentService;
 import com.edu.platform.community.util.PermissionUtil;
 import com.edu.platform.common.result.Result;
+import com.edu.platform.community.mq.AuditRequestSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -43,6 +44,9 @@ public class CommentServiceImpl implements CommentService {
     
     @Autowired(required = false)
     private UserServiceClient userServiceClient;
+    
+    @Autowired(required = false)
+    private AuditRequestSender auditRequestSender;
     
     @Autowired
     public CommentServiceImpl(CommunityCommentMapper commentMapper, 
@@ -97,10 +101,20 @@ public class CommentServiceImpl implements CommentService {
         comment.setParentId(request.getParentId());
         comment.setReplyToUserId(request.getReplyToUserId());
         comment.setLikeCount(0);
+        comment.setAuditStatus(1); // 默认通过，发送MQ通知audit-service记录
         comment.setStatus(1);
         
         // 保存到数据库
         commentMapper.insert(comment);
+        
+        // 发送审核请求消息给audit-service
+        if (auditRequestSender != null) {
+            auditRequestSender.sendCommentAuditRequest(
+                    comment.getId(),
+                    userId,
+                    request.getCommentContent()
+            );
+        }
         
         // 更新话题的评论数
         postMapper.update(null,

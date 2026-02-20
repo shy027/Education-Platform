@@ -1,6 +1,6 @@
 package com.edu.platform.course.controller.internal;
 
-import com.edu.platform.common.annotation.RequireAdminOrLeader;
+
 import com.edu.platform.common.result.Result;
 import com.edu.platform.course.dto.internal.CoursewareInfoDTO;
 import com.edu.platform.course.dto.internal.UpdateAuditStatusRequest;
@@ -31,7 +31,7 @@ public class CoursewareInternalController {
     public Result<Void> updateAuditStatus(
             @PathVariable Long coursewareId,
             @RequestBody UpdateAuditStatusRequest request) {
-        coursewareService.updateAuditStatus(coursewareId, request.getAuditStatus());
+        coursewareService.updateAuditStatus(coursewareId, request.getAuditStatus(), request.getAuditorId());
         return Result.success();
     }
     

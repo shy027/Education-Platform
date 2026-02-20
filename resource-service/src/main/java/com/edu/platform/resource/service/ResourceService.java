@@ -115,5 +115,15 @@ public interface ResourceService {
      * @param resourceId 资源ID
      */
     void incrementViewCount(Long resourceId);
+
+    /**
+     * 由audit-service回调更新审核状态(内部接口)
+     *
+     * @param resourceId  资源ID
+     * @param auditStatus 审核状态: 1-通过, 2-拒绝
+     * @param auditorId   审核人ID
+     * @param auditRemark 审核备注
+     */
+    void updateAuditStatus(Long resourceId, Integer auditStatus, Long auditorId, String auditRemark);
     
 }

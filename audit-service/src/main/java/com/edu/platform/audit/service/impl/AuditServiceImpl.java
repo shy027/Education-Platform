@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.audit.client.CommunityClient;
 import com.edu.platform.audit.client.CourseClient;
+import com.edu.platform.audit.client.ResourceClient;
 import com.edu.platform.audit.dto.feign.CommentInfoDTO;
 import com.edu.platform.audit.dto.feign.CoursewareInfoDTO;
 import com.edu.platform.audit.dto.feign.PostInfoDTO;
@@ -47,6 +48,7 @@ public class AuditServiceImpl implements AuditService {
     private final AuditRecordMapper auditRecordMapper;
     private final CourseClient courseClient;
     private final CommunityClient communityClient;
+    private final ResourceClient resourceClient;
     
     @Override
     public PageResult<AuditRecordVO> getPendingList(AuditQueryRequest request) {
@@ -239,6 +241,7 @@ public class AuditServiceImpl implements AuditService {
                                          Integer auditResult, String auditReason, Long auditorId) {
         UpdateAuditStatusRequest request = new UpdateAuditStatusRequest();
         request.setAuditStatus(auditResult);
+        request.setAuditorId(auditorId);
         
         try {
             switch (contentType) {
@@ -253,6 +256,14 @@ public class AuditServiceImpl implements AuditService {
                 case "COMMENT":
                     communityClient.updateCommentAuditStatus(contentId, request);
                     log.info("更新评论审核状态成功: contentId={}, auditResult={}", contentId, auditResult);
+                    break;
+                case "RESOURCE":
+                    java.util.Map<String, Object> resourceReq = new java.util.HashMap<>();
+                    resourceReq.put("auditStatus", auditResult);
+                    resourceReq.put("auditorId", auditorId);
+                    resourceReq.put("auditRemark", auditReason);
+                    resourceClient.updateAuditStatus(contentId, resourceReq);
+                    log.info("更新资源审核状态成功: contentId={}, auditResult={}", contentId, auditResult);
                     break;
                 default:
                     log.warn("未知的内容类型: {}", contentType);

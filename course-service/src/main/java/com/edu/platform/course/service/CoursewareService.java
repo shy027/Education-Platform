@@ -48,7 +48,7 @@ public interface CoursewareService {
     /**
      * 更新审核状态(内部调用)
      */
-    void updateAuditStatus(Long coursewareId, Integer auditStatus);
+    void updateAuditStatus(Long coursewareId, Integer auditStatus, Long auditorId);
     
     /**
      * 获取课件信息(内部调用)

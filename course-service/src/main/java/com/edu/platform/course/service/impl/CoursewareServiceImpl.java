@@ -21,6 +21,7 @@ import com.edu.platform.course.mapper.CourseCoursewareMapper;
 import com.edu.platform.course.mapper.CourseMapper;
 import com.edu.platform.course.mapper.CoursewareProgressMapper;
 import com.edu.platform.course.service.CoursewareService;
+import com.edu.platform.course.mq.AuditRequestSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class CoursewareServiceImpl implements CoursewareService {
     private final CoursewareProgressMapper progressMapper;
     private final CourseMapper courseMapper;
     private final CourseChapterMapper chapterMapper;
+    private final AuditRequestSender auditRequestSender;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -74,6 +76,14 @@ public class CoursewareServiceImpl implements CoursewareService {
         courseware.setStatus(1); // 启用
         
         coursewareMapper.insert(courseware);
+        
+        // 发送审核请求消息给audit-service
+        auditRequestSender.sendCoursewareAuditRequest(
+                courseware.getId(),
+                userId,
+                courseware.getWareTitle(),
+                request.getDescription()
+        );
         
         log.info("课件上传成功: wareId={}, courseId={}, userId={}", 
                 courseware.getId(), courseId, userId);
@@ -265,7 +275,7 @@ public class CoursewareServiceImpl implements CoursewareService {
     }
     
     @Override
-    public void updateAuditStatus(Long coursewareId, Integer auditStatus) {
+    public void updateAuditStatus(Long coursewareId, Integer auditStatus, Long auditorId) {
         CourseCourseware courseware = coursewareMapper.selectById(coursewareId);
         if (courseware == null) {
             throw new BusinessException("课件不存在");
@@ -275,10 +285,11 @@ public class CoursewareServiceImpl implements CoursewareService {
         updateEntity.setId(coursewareId);
         updateEntity.setAuditStatus(auditStatus);
         updateEntity.setAuditTime(LocalDateTime.now());
+        updateEntity.setAuditorId(auditorId);
         
         coursewareMapper.updateById(updateEntity);
         
-        log.info("更新课件审核状态: coursewareId={}, auditStatus={}", coursewareId, auditStatus);
+        log.info("更新课件审核状态: coursewareId={}, auditStatus={}, auditorId={}", coursewareId, auditStatus, auditorId);
     }
     
     @Override

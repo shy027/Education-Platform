@@ -17,6 +17,7 @@ import com.edu.platform.resource.dto.response.ResourceResponse;
 import com.edu.platform.resource.entity.*;
 import com.edu.platform.resource.mapper.*;
 import com.edu.platform.resource.service.ResourceService;
+import com.edu.platform.resource.mq.AuditRequestSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,9 @@ public class ResourceServiceImpl implements ResourceService {
     private final ResourceTagMapper tagMapper;
     private final ResourceCategoryMapper categoryMapper;
     private final ResourceAuditLogMapper auditLogMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AuditRequestSender auditRequestSender;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -97,6 +101,17 @@ public class ResourceServiceImpl implements ResourceService {
         }
         
         log.info("创建资源成功: resourceId={}, userId={}, role={}", resource.getId(), userId, userRole);
+
+        // 发送审核请求消息
+        if (auditRequestSender != null) {
+            if ("ADMIN".equals(userRole)) {
+                // 管理员直接发布，默认通过
+                auditRequestSender.sendAdminResourceAuditRequest(
+                        resource.getId(), userId, resource.getTitle(), resource.getSummary());
+            }
+            // 教师创建的资源是草稿，等提交审核时再发送
+        }
+
         return resource.getId();
     }
     
@@ -287,6 +302,12 @@ public class ResourceServiceImpl implements ResourceService {
         resource.setAuditStatus(0); // 待审核
         resourceMapper.updateById(resource);
         
+        // 发送审核请求消息给audit-service
+        if (auditRequestSender != null) {
+            auditRequestSender.sendResourceAuditRequest(
+                    resourceId, userId, resource.getTitle(), resource.getSummary());
+        }
+        
         log.info("提交审核成功: resourceId={}, userId={}", resourceId, userId);
     }
     
@@ -467,5 +488,36 @@ public class ResourceServiceImpl implements ResourceService {
             return info;
         }).collect(Collectors.toList());
     }
-    
+
+    /**
+     * 由audit-service回调，更新资源审核状态
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateAuditStatus(Long resourceId, Integer auditStatus, Long auditorId, String auditRemark) {
+        Resource resource = resourceMapper.selectById(resourceId);
+        if (resource == null) {
+            throw new BusinessException("资源不存在");
+        }
+
+        Resource updateEntity = new Resource();
+        updateEntity.setId(resourceId);
+        updateEntity.setAuditStatus(auditStatus);
+        updateEntity.setAuditorId(auditorId);
+        updateEntity.setAuditRemark(auditRemark);
+        updateEntity.setAuditTime(LocalDateTime.now());
+
+        if (auditStatus == 1) {
+            // 审核通过 → 已发布
+            updateEntity.setStatus(2);
+            updateEntity.setPublishedTime(LocalDateTime.now());
+        } else if (auditStatus == 2) {
+            // 审核拒绝 → 已拒绝
+            updateEntity.setStatus(3);
+        }
+
+        resourceMapper.updateById(updateEntity);
+        log.info("资源审核状态已更新: resourceId={}, auditStatus={}, auditorId={}", resourceId, auditStatus, auditorId);
+    }
+
 }

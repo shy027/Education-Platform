@@ -40,6 +40,15 @@ spring:
           max-idle: 8
           min-idle: 0
   
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    publisher-confirm-type: correlated
+    publisher-returns: true
+  
   servlet:
     multipart:
       max-file-size: -1

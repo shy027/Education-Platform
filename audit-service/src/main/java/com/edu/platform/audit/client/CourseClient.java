@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
  *
  * @author Education Platform
  */
-@FeignClient(name = "course-service", url = "http://localhost:8082", path = "/internal/courseware")
+@FeignClient(name = "course-service", url = "http://localhost:8083", path = "/internal/courseware")
 public interface CourseClient {
     
     /**
