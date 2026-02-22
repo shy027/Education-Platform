@@ -1,6 +1,8 @@
 package com.edu.platform.course.interceptor;
 
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.TypeReference;
 import com.edu.platform.common.utils.JwtUtil;
 import com.edu.platform.common.utils.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +15,10 @@ import java.util.List;
 
 /**
  * 用户信息拦截器
+ * <p>
+ * 用户信息来源（优先级从高到低）：
+ * 1. 网关透传的 Header（X-User-Id / X-Username / X-User-Roles）
+ * 2. 请求中的 Authorization Bearer Token（直连调试场景）
  */
 @Slf4j
 @Component
@@ -26,15 +32,21 @@ public class UserInterceptor implements HandlerInterceptor {
             try {
                 UserContext.setUserId(Long.parseLong(headerUserId));
                 UserContext.setUsername(request.getHeader("X-Username"));
-                // Header中传递角色列表可能比较复杂(JSON)，这里简化处理，如果能解析最好，否则暂为空
-                // UserContext.setRoles(...); 
+                // 解析网关透传的角色列表（JSON 数组字符串，如 ["ROLE_TEACHER"]）
+                String rolesJson = request.getHeader("X-User-Roles");
+                if (StrUtil.isNotBlank(rolesJson)) {
+                    List<String> roles = JSON.parseObject(rolesJson, new TypeReference<List<String>>() {});
+                    UserContext.setRoles(roles);
+                }
                 return true;
             } catch (NumberFormatException e) {
                 log.warn("Invalid X-User-Id header: {}", headerUserId);
+            } catch (Exception e) {
+                log.warn("Failed to parse X-User-Roles header: {}", e.getMessage());
             }
         }
 
-        // 2. 尝试解析 Authorization Header (本地调试或直连场景)
+        // 2. 尝试解析 Authorization Header（本地调试或直连场景）
         String token = request.getHeader("Authorization");
         if (StrUtil.isNotBlank(token)) {
             if (token.startsWith("Bearer ")) {
@@ -44,17 +56,16 @@ public class UserInterceptor implements HandlerInterceptor {
                 Long userId = JwtUtil.getUserId(token);
                 String username = JwtUtil.getUsername(token);
                 List<String> roles = JwtUtil.getRoles(token);
-                
+
                 UserContext.setUserId(userId);
                 UserContext.setUsername(username);
                 UserContext.setRoles(roles);
                 return true;
             }
         }
-        
-        // 3. 未登录或无法识别用户，是否放行取决于业务。
-        // 对于必须登录的接口，Controller层或Service层会校验 Context 中的 ID
-        // 这里均放行，但 Context 为空
+
+        // 3. 未获取到用户信息，放行（Context 为空）
+        // 对于必须登录的接口，网关已拦截；直连场景由 Controller/Service 层校验
         return true;
     }
 

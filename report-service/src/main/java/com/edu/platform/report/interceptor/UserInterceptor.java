@@ -1,6 +1,8 @@
 package com.edu.platform.report.interceptor;
 
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.TypeReference;
 import com.edu.platform.common.utils.JwtUtil;
 import com.edu.platform.common.utils.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,9 +15,10 @@ import java.util.List;
 
 /**
  * 用户信息拦截器
- * 从请求头中提取用户信息并设置到UserContext
- *
- * @author Education Platform
+ * <p>
+ * 用户信息来源（优先级从高到低）：
+ * 1. 网关透传的 Header（X-User-Id / X-Username / X-User-Roles）
+ * 2. 请求中的 Authorization Bearer Token（直连调试场景）
  */
 @Slf4j
 @Component
@@ -29,14 +32,22 @@ public class UserInterceptor implements HandlerInterceptor {
             try {
                 UserContext.setUserId(Long.parseLong(headerUserId));
                 UserContext.setUsername(request.getHeader("X-Username"));
-                log.debug("从Header获取用户信息: userId={}, username={}", headerUserId, request.getHeader("X-Username"));
+                // 解析网关透传的角色列表（JSON 数组字符串，如 ["ROLE_TEACHER"]）
+                String rolesJson = request.getHeader("X-User-Roles");
+                if (StrUtil.isNotBlank(rolesJson)) {
+                    List<String> roles = JSON.parseObject(rolesJson, new TypeReference<List<String>>() {});
+                    UserContext.setRoles(roles);
+                }
+                log.debug("从Gateway Header获取用户信息: userId={}, username={}", headerUserId, request.getHeader("X-Username"));
                 return true;
             } catch (NumberFormatException e) {
                 log.warn("Invalid X-User-Id header: {}", headerUserId);
+            } catch (Exception e) {
+                log.warn("Failed to parse X-User-Roles header: {}", e.getMessage());
             }
         }
 
-        // 2. 尝试解析 Authorization Header (本地调试或直连场景)
+        // 2. 尝试解析 Authorization Header（本地调试或直连场景）
         String token = request.getHeader("Authorization");
         if (StrUtil.isNotBlank(token)) {
             if (token.startsWith("Bearer ")) {
@@ -46,18 +57,17 @@ public class UserInterceptor implements HandlerInterceptor {
                 Long userId = JwtUtil.getUserId(token);
                 String username = JwtUtil.getUsername(token);
                 List<String> roles = JwtUtil.getRoles(token);
-                
+
                 UserContext.setUserId(userId);
                 UserContext.setUsername(username);
                 UserContext.setRoles(roles);
-                log.debug("从JWT获取用户信息: userId={}, username={}", userId, username);
+                log.debug("从JWT Token获取用户信息: userId={}, username={}", userId, username);
                 return true;
             }
         }
-        
-        // 3. 未登录或无法识别用户，放行
-        // 对于必须登录的接口，Service层会校验 Context 中的 ID
-        log.debug("未获取到用户信息,UserContext为空");
+
+        // 3. 未获取到用户信息，放行（Context 为空）
+        log.debug("未获取到用户信息, UserContext为空");
         return true;
     }
 

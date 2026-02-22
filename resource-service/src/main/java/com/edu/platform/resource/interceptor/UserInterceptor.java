@@ -1,4 +1,4 @@
-package com.edu.platform.community.interceptor;
+package com.edu.platform.resource.interceptor;
 
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
