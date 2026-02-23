@@ -9,11 +9,10 @@ import com.edu.platform.audit.service.AuditService;
 import com.edu.platform.common.annotation.RequireAdminOrLeader;
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
-import com.edu.platform.common.utils.JwtUtil;
+import com.edu.platform.common.utils.UserContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -55,12 +54,9 @@ public class AuditController {
     @RequireAdminOrLeader
     public Result<Void> manualAudit(
             @Parameter(description = "审核记录ID") @PathVariable Long recordId,
-            @Valid @RequestBody AuditRequest request,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody AuditRequest request) {
         
-        String token = getTokenFromRequest(httpRequest);
-        Long auditorId = JwtUtil.getUserId(token);
-        
+        Long auditorId = UserContext.getUserId();
         auditService.manualAudit(recordId, request, auditorId);
         return Result.success();
     }
@@ -68,13 +64,8 @@ public class AuditController {
     @Operation(summary = "批量审核")
     @PutMapping("/batch")
     @RequireAdminOrLeader
-    public Result<BatchAuditResult> batchAudit(
-            @Valid @RequestBody BatchAuditRequest request,
-            HttpServletRequest httpRequest) {
-        
-        String token = getTokenFromRequest(httpRequest);
-        Long auditorId = JwtUtil.getUserId(token);
-        
+    public Result<BatchAuditResult> batchAudit(@Valid @RequestBody BatchAuditRequest request) {
+        Long auditorId = UserContext.getUserId();
         BatchAuditResult result = auditService.batchAudit(request, auditorId);
         return Result.success(result);
     }
@@ -100,16 +91,5 @@ public class AuditController {
         
         PageResult<AuditRecordVO> result = auditService.getAuditRecords(request);
         return Result.success(result);
-    }
-    
-    /**
-     * 从请求中获取Token
-     */
-    private String getTokenFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
     }
 }

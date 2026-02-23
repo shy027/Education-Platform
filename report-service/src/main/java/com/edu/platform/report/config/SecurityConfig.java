@@ -40,9 +40,9 @@ public class SecurityConfig {
             // 配置请求授权
             .authorizeHttpRequests(auth -> auth
                 // 健康检查接口允许匿名访问
-                .requestMatchers("/actuator/**", "/health/**").permitAll()
+                .requestMatchers("/actuator/**", "/health/**", "/api/v1/health/**").permitAll()
                 // Swagger文档允许访问
-                .requestMatchers("/doc.html", "/webjars/**", "/swagger-resources/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/doc.html", "/webjars/**", "/swagger-resources/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
                 // 其他所有请求需要认证
                 .anyRequest().authenticated()
             )

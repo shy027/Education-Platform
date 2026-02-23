@@ -2,7 +2,7 @@ package com.edu.platform.resource.controller;
 
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
-import com.edu.platform.common.utils.JwtUtil;
+import com.edu.platform.common.utils.UserContext;
 import com.edu.platform.resource.dto.request.ResourceAuditRequest;
 import com.edu.platform.resource.dto.request.ResourceCreateRequest;
 import com.edu.platform.resource.dto.request.ResourceQueryRequest;
@@ -13,7 +13,6 @@ import com.edu.platform.resource.dto.response.ResourceResponse;
 import com.edu.platform.resource.service.ResourceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import com.edu.platform.common.annotation.RequireAdminOrLeader;
 import com.edu.platform.common.annotation.RequireTeacherOrAbove;
@@ -39,12 +38,12 @@ public class ResourceController {
     @PostMapping
     @RequireTeacherOrAbove
     public Result<Long> createResource(
-            @Valid @RequestBody ResourceCreateRequest request,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody ResourceCreateRequest request) {
         
-        String token = getTokenFromRequest(httpRequest);
-        Long userId = JwtUtil.getUserId(token);
-        String userRole = JwtUtil.getRoles(token).get(0); // 获取第一个角色
+        Long userId = UserContext.getUserId();
+        String userRole = UserContext.getRoles() != null && !UserContext.getRoles().isEmpty()
+                ? UserContext.getRoles().get(0)
+                : "";
         
         Long resourceId = resourceService.createResource(request, userId, userRole);
         return Result.success(resourceId);
@@ -55,12 +54,9 @@ public class ResourceController {
     @RequireTeacherOrAbove
     public Result<Void> updateResource(
             @PathVariable Long id,
-            @Valid @RequestBody ResourceUpdateRequest request,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody ResourceUpdateRequest request) {
         
-        String token = getTokenFromRequest(httpRequest);
-        Long userId = JwtUtil.getUserId(token);
-        
+        Long userId = UserContext.getUserId();
         resourceService.updateResource(id, request, userId);
         return Result.success();
     }
@@ -68,13 +64,8 @@ public class ResourceController {
     @Operation(summary = "删除资源")
     @DeleteMapping("/{id}")
     @RequireTeacherOrAbove
-    public Result<Void> deleteResource(
-            @PathVariable Long id,
-            HttpServletRequest httpRequest) {
-        
-        String token = getTokenFromRequest(httpRequest);
-        Long userId = JwtUtil.getUserId(token);
-        
+    public Result<Void> deleteResource(@PathVariable Long id) {
+        Long userId = UserContext.getUserId();
         resourceService.deleteResource(id, userId);
         return Result.success();
     }
@@ -116,13 +107,8 @@ public class ResourceController {
     @Operation(summary = "提交审核")
     @PostMapping("/{id}/submit")
     @RequireTeacherOrAbove
-    public Result<Void> submitForAudit(
-            @PathVariable Long id,
-            HttpServletRequest httpRequest) {
-        
-        String token = getTokenFromRequest(httpRequest);
-        Long userId = JwtUtil.getUserId(token);
-        
+    public Result<Void> submitForAudit(@PathVariable Long id) {
+        Long userId = UserContext.getUserId();
         resourceService.submitForAudit(id, userId);
         return Result.success();
     }
@@ -132,12 +118,9 @@ public class ResourceController {
     @RequireAdminOrLeader
     public Result<Void> auditResource(
             @PathVariable Long id,
-            @Valid @RequestBody ResourceAuditRequest request,
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody ResourceAuditRequest request) {
         
-        String token = getTokenFromRequest(httpRequest);
-        Long auditorId = JwtUtil.getUserId(token);
-        
+        Long auditorId = UserContext.getUserId();
         resourceService.auditResource(id, request, auditorId);
         return Result.success();
     }
@@ -162,26 +145,10 @@ public class ResourceController {
     @Operation(summary = "下架资源")
     @PostMapping("/{id}/offline")
     @RequireAdminOrLeader
-    public Result<Void> offlineResource(
-            @PathVariable Long id,
-            HttpServletRequest httpRequest) {
-        
-        String token = getTokenFromRequest(httpRequest);
-        Long userId = JwtUtil.getUserId(token);
-        
+    public Result<Void> offlineResource(@PathVariable Long id) {
+        Long userId = UserContext.getUserId();
         resourceService.offlineResource(id, userId);
         return Result.success();
-    }
-    
-    /**
-     * 从请求中获取Token
-     */
-    private String getTokenFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
     }
     
 }

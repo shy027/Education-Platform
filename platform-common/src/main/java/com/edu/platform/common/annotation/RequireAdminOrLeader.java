@@ -11,7 +11,7 @@ import java.lang.annotation.*;
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SCHOOL_LEADER')")
+@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SCHOOL_LEADER')")
 public @interface RequireAdminOrLeader {
     /**
      * 描述信息

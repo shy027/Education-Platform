@@ -25,36 +25,70 @@ spring:
 
       routes:
         # 用户服务路由
+        # AuthController: /api/v1/auth
+        # SchoolController: /api/v1/schools
+        # RoleController: /api/v1/roles
+        # UserManageController: /api/v1/users/manage
+        # FileController: /api/v1/files
         - id: user-service
           uri: lb://user-service
           predicates:
-            - Path=/api/v1/auth/**,/api/v1/users/**,/api/v1/schools/**,/api/v1/roles/**
+            - Path=/api/v1/auth/**,/api/v1/users/**,/api/v1/schools/**,/api/v1/roles/**,/api/v1/files/**
 
         # 资源服务路由
+        # ResourceController: /api/v1/resources
+        # TagController: /api/v1/tags
+        # CategoryController: /api/v1/categories
+        # FileUploadController: /api/v1/upload
         - id: resource-service
           uri: lb://resource-service
           predicates:
-            - Path=/api/v1/cases/**,/api/v1/tags/**
+            - Path=/api/v1/resources/**,/api/v1/tags/**,/api/v1/categories/**,/api/v1/upload/**
 
         # 课程服务路由
+        # CourseController / CourseMemberController: /api/v1/courses
+        # CoursewareController: /api/v1（内含 /api/v1/coursewares/**）
+        # CoursewareFileController: /api/v1/courseware/files
+        # ChapterController: /api/v1/courses/{courseId}/chapters
+        # TaskController: /api/v1/courses/{courseId}/tasks
+        # AnnouncementController: /api/v1/courses/{courseId}/announcements
+        # QuestionController: /api/v1/questions
+        # PaperController: /api/v1/papers
+        # StudentExamController: /api/v1/student/exams
+        # AnswerController: /api/v1/student/answers
+        # GradingController: /api/v1/grading
+        # DimensionController: /api/v1/dimensions
+        # AdminCourseController: /api/v1/admin/courses
         - id: course-service
           uri: lb://course-service
           predicates:
-            - Path=/api/v1/courses/**,/api/v1/coursewares/**,/api/v1/tasks/**,/api/v1/chapters/**,/api/v1/questions/**,/api/v1/papers/**,/api/v1/announcements/**
+            - Path=/api/v1/courses/**,/api/v1/coursewares/**,/api/v1/courseware/**,/api/v1/chapters/**,/api/v1/tasks/**,/api/v1/questions/**,/api/v1/papers/**,/api/v1/announcements/**,/api/v1/student/**,/api/v1/grading/**,/api/v1/dimensions/**,/api/v1/admin/courses/**
 
-        # 社区服务路由
+        # 社区服务路由（实际前缀均为 /api/v1/community/）
+        # PostController: /api/v1/community/posts
+        # CommentController: /api/v1/community/comments
+        # LikeController: /api/v1/community/likes
+        # GroupController / GroupTopicController / GroupDocumentController / GroupChatController: /api/v1/community/groups
+        # FileController / FileUploadController: /api/v1/community/files
+        # EasemobController: /api/v1/community/easemob
         - id: community-service
           uri: lb://community-service
           predicates:
-            - Path=/api/v1/posts/**,/api/v1/comments/**,/api/v1/groups/**,/api/v1/documents/**
+            - Path=/api/v1/community/**
 
         # 报告服务路由
+        # BehaviorController: /api/v1/behaviors
+        # ProfileController: /api/v1/profiles
+        # ReportController: /api/v1/reports
+        # HealthController: /api/v1/health
+        # AdminConfigController: /api/v1/admin/config
         - id: report-service
           uri: lb://report-service
           predicates:
-            - Path=/api/v1/behaviors/**,/api/v1/profile/**,/api/v1/reports/**
+            - Path=/api/v1/behaviors/**,/api/v1/profiles/**,/api/v1/reports/**,/api/v1/health/**,/api/v1/admin/config/**
 
         # 审核服务路由
+        # AuditController: /api/v1/audit
         - id: audit-service
           uri: lb://audit-service
           predicates:
@@ -143,12 +177,16 @@ spring:
 gateway:
   # JWT 白名单路径（无需 Token 即可访问）
   white-list:
+    # 用户服务 - 认证相关（无需登录）
     - /api/v1/auth/register
     - /api/v1/auth/login
     - /api/v1/auth/phone-password-login
     - /api/v1/auth/phone-code-login
     - /api/v1/auth/send-code
+    # 资源服务 - 公开标签列表（无需登录）
     - /api/v1/tags/enabled
+    # 报告服务 - 健康检查（无需登录）
+    - /api/v1/health/**
     # Knife4j 文档相关（完整放行，含通配符覆盖所有子路径）
     - /doc.html
     - /webjars/**

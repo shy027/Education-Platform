@@ -27,7 +27,7 @@ import java.util.Map;
 @RequestMapping("/api/v1/admin/config")
 @RequiredArgsConstructor
 @Tag(name = "管理员配置", description = "系统配置管理接口(仅管理员)")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class AdminConfigController {
     
     private final ConfigService configService;

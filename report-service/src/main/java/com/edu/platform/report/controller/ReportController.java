@@ -2,6 +2,7 @@ package com.edu.platform.report.controller;
 
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
+import com.edu.platform.common.utils.UserContext;
 import com.edu.platform.report.dto.ReportDTO;
 import com.edu.platform.report.dto.ReportListRequest;
 import com.edu.platform.report.dto.ReportStatusResponse;
@@ -9,7 +10,6 @@ import com.edu.platform.report.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,34 +34,19 @@ public class ReportController {
      */
     @PostMapping("/course/{courseId}/generate")
     @Operation(summary = "生成课程报告", description = "生成指定课程的思政教学成效报告")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_TEACHER', 'ROLE_ADMIN')")
     public Result<Long> generateCourseReport(
             @Parameter(description = "课程ID", required = true)
-            @PathVariable Long courseId,
-            HttpServletRequest request) {
+            @PathVariable Long courseId) {
         
         try {
-            // 从JWT token获取当前用户ID
-            String token = getTokenFromRequest(request);
-            Long userId = com.edu.platform.common.utils.JwtUtil.getUserId(token);
-            
+            Long userId = UserContext.getUserId();
             Long reportId = reportService.generateCourseReport(courseId, userId);
             return Result.success(reportId);
         } catch (Exception e) {
             log.error("生成课程报告失败", e);
             return Result.fail("生成报告失败: " + e.getMessage());
         }
-    }
-    
-    /**
-     * 从请求中获取Token
-     */
-    private String getTokenFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
     }
     
     /**
@@ -129,7 +114,7 @@ public class ReportController {
      */
     @GetMapping
     @Operation(summary = "查询所有报告列表", description = "管理员查询所有报告(支持多条件筛选)")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public Result<PageResult<ReportDTO>> getReportList(
             @RequestParam(required = false) Long courseId,
             @RequestParam(required = false) Integer reportType,
@@ -161,7 +146,7 @@ public class ReportController {
      */
     @DeleteMapping("/{reportId}")
     @Operation(summary = "删除报告", description = "删除指定报告(同时删除OSS文件)")
-    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_TEACHER', 'ROLE_ADMIN')")
     public Result<Void> deleteReport(
             @Parameter(description = "报告ID", required = true)
             @PathVariable Long reportId) {
