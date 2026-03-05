@@ -18,13 +18,23 @@ public class CourseListResponse {
     
     private String courseCover;
     
+    /** 课程封面（同 courseCover，前端兼容字段） */
+    private String cover;
+    
+    /** 课程简介（同 courseIntro，前端兼容字段） */
+    private String description;
+    
     private String subjectArea;
     
     private String schoolName;
     
+    private Long teacherId;
+    
     private String teacherName;
     
     private Integer joinType;
+    
+    private Integer memberCount;
     
     private Integer studentCount;
     

@@ -18,6 +18,7 @@ import com.edu.platform.course.dto.response.CourseListResponse;
 import com.edu.platform.course.entity.Course;
 import com.edu.platform.course.mapper.CourseMapper;
 import com.edu.platform.course.service.CourseService;
+import com.edu.platform.course.service.SubjectCategoryService;
 import com.edu.platform.course.util.PermissionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> implements CourseService {
 
+    private final SubjectCategoryService subjectCategoryService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createCourse(CourseCreateRequest request) {
@@ -48,6 +51,17 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         // 2. 校验权限 (只有教师、校领导或管理员可以创建课程)
         if (!PermissionUtil.isTeacherOrAbove()) {
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "只有教师可以创建课程");
+        }
+        
+        // 3. 校验学科领域是否存在且启用
+        if (StrUtil.isNotBlank(request.getSubjectArea())) {
+            boolean exists = subjectCategoryService.lambdaQuery()
+                    .eq(com.edu.platform.course.entity.SubjectCategory::getName, request.getSubjectArea())
+                    .eq(com.edu.platform.course.entity.SubjectCategory::getIsEnabled, 1)
+                    .exists();
+            if (!exists) {
+                throw new BusinessException(ResultCode.FAIL.getCode(), "学科领域不存在或未启用");
+            }
         }
 
         Course course = new Course();
@@ -159,6 +173,10 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         List<CourseListResponse> list = coursePage.getRecords().stream().map(course -> {
             CourseListResponse resp = new CourseListResponse();
             BeanUtil.copyProperties(course, resp);
+            // 前端存在字段名称差异，需手动映射
+            resp.setCover(course.getCourseCover());
+            resp.setDescription(course.getCourseIntro());
+            resp.setMemberCount(course.getStudentCount());
             // TODO: 填充名称
             resp.setSchoolName("Test School");
             resp.setTeacherName("Test Teacher");
@@ -221,6 +239,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         List<CourseListResponse> list = coursePage.getRecords().stream().map(course -> {
             CourseListResponse resp = new CourseListResponse();
             BeanUtil.copyProperties(course, resp);
+            resp.setCover(course.getCourseCover());
+            resp.setDescription(course.getCourseIntro());
+            resp.setMemberCount(course.getStudentCount());
             resp.setSchoolName("Test School");
             resp.setTeacherName("Test Teacher");
             return resp;

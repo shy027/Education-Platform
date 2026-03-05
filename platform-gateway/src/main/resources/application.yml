@@ -62,7 +62,7 @@ spring:
         - id: course-service
           uri: lb://course-service
           predicates:
-            - Path=/api/v1/courses/**,/api/v1/coursewares/**,/api/v1/courseware/**,/api/v1/chapters/**,/api/v1/tasks/**,/api/v1/questions/**,/api/v1/papers/**,/api/v1/announcements/**,/api/v1/student/**,/api/v1/grading/**,/api/v1/dimensions/**,/api/v1/admin/courses/**
+            - Path=/api/v1/subjects/**,/api/v1/courses/**,/api/v1/coursewares/**,/api/v1/courseware/**,/api/v1/chapters/**,/api/v1/tasks/**,/api/v1/questions/**,/api/v1/papers/**,/api/v1/announcements/**,/api/v1/student/**,/api/v1/grading/**,/api/v1/dimensions/**,/api/v1/admin/courses/**
 
         # 社区服务路由（实际前缀均为 /api/v1/community/）
         # PostController: /api/v1/community/posts
