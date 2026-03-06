@@ -2,6 +2,7 @@ package com.edu.platform.course.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -12,7 +13,6 @@ import com.edu.platform.course.dto.request.AddMemberRequest;
 import com.edu.platform.course.dto.request.ApproveMemberRequest;
 import com.edu.platform.course.dto.request.MemberQueryRequest;
 import com.edu.platform.course.dto.request.UpdateMemberRoleRequest;
-import com.edu.platform.course.dto.response.CourseListResponse;
 import com.edu.platform.course.dto.response.MemberResponse;
 import com.edu.platform.course.dto.response.MyCoursesResponse;
 import com.edu.platform.course.entity.Course;
@@ -20,6 +20,9 @@ import com.edu.platform.course.entity.CourseMember;
 import com.edu.platform.course.mapper.CourseMemberMapper;
 import com.edu.platform.course.service.CourseMemberService;
 import com.edu.platform.course.service.CourseService;
+import com.edu.platform.course.client.UserServiceClient;
+import com.edu.platform.course.dto.UserInfoDTO;
+import com.edu.platform.common.result.Result;
 import com.edu.platform.course.util.PermissionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +44,7 @@ import java.util.stream.Collectors;
 public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, CourseMember> implements CourseMemberService {
 
     private final CourseService courseService;
+    private final UserServiceClient userServiceClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -200,10 +205,45 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
         
         MyCoursesResponse response = new MyCoursesResponse();
         
-        // 1. 查询我教的课程（通过 teacherId 查询）
+        // 1. 获取所有涉及到的课程
         List<Course> teachingCourses = courseService.list(new LambdaQueryWrapper<Course>()
                 .eq(Course::getTeacherId, userId));
         
+        List<CourseMember> members = this.list(new LambdaQueryWrapper<CourseMember>()
+                .eq(CourseMember::getUserId, userId)
+                .eq(CourseMember::getJoinStatus, 1));
+                
+        List<Course> allRelatedCourses = new ArrayList<>(teachingCourses);
+        if (!members.isEmpty()) {
+            List<Long> memberCourseIds = members.stream()
+                .map(CourseMember::getCourseId)
+                .filter(id -> teachingCourses.stream().noneMatch(c -> c.getId().equals(id)))
+                .collect(Collectors.toList());
+            if (!memberCourseIds.isEmpty()) {
+                allRelatedCourses.addAll(courseService.listByIds(memberCourseIds));
+            }
+        }
+
+        // 2. 批量查出涉及课程的教师信息
+        List<Long> teacherIds = allRelatedCourses.stream()
+                .map(Course::getTeacherId)
+                .distinct()
+                .collect(Collectors.toList());
+                
+        Map<Long, UserInfoDTO> userMap = null;
+        if (!teacherIds.isEmpty()) {
+            try {
+                Result<Map<Long, UserInfoDTO>> userResult = userServiceClient.batchGetUserInfo(teacherIds);
+                if (userResult.isSuccess()) {
+                    userMap = userResult.getData();
+                }
+            } catch (Exception e) {
+                log.error("批量获取教师信息失败: {}", e.getMessage());
+            }
+        }
+        final Map<Long, UserInfoDTO> finalUserMap = userMap;
+        
+        // 3. 构建我教的课程
         List<MyCoursesResponse.MyCourseItem> teaching = teachingCourses.stream().map(course -> {
             MyCoursesResponse.MyCourseItem item = new MyCoursesResponse.MyCourseItem();
             item.setCourseId(course.getId());
@@ -214,22 +254,24 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
             item.setMyRole(1); // 主讲教师
             item.setStudentCount(course.getStudentCount());
             item.setStatus(course.getStatus());
+            item.setCourseIntro(course.getCourseIntro());
+            item.setTeacherId(course.getTeacherId());
+            item.setEndTime(course.getEndTime());
+            if (finalUserMap != null && finalUserMap.containsKey(course.getTeacherId())) {
+                UserInfoDTO teacher = finalUserMap.get(course.getTeacherId());
+                item.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
+            } else {
+                item.setTeacherName("未知教师");
+            }
             return item;
         }).collect(Collectors.toList());
         
-        // 2. 查询我加入的课程（通过 course_member 表）
-        List<CourseMember> members = this.list(new LambdaQueryWrapper<CourseMember>()
-                .eq(CourseMember::getUserId, userId)
-                .eq(CourseMember::getJoinStatus, 1));
-        
+        // 4. 构建我参与的课程
         List<MyCoursesResponse.MyCourseItem> learning = new ArrayList<>();
         List<MyCoursesResponse.MyCourseItem> assisting = new ArrayList<>();
         
         if (!members.isEmpty()) {
-            List<Long> courseIds = members.stream().map(CourseMember::getCourseId).collect(Collectors.toList());
-            List<Course> courses = courseService.listByIds(courseIds);
-            
-            for (Course course : courses) {
+            for (Course course : allRelatedCourses) {
                 CourseMember member = members.stream()
                         .filter(m -> m.getCourseId().equals(course.getId()))
                         .findFirst()
@@ -245,6 +287,15 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
                     item.setMyRole(member.getMemberRole());
                     item.setStudentCount(course.getStudentCount());
                     item.setStatus(course.getStatus());
+                    item.setCourseIntro(course.getCourseIntro());
+                    item.setTeacherId(course.getTeacherId());
+                    item.setEndTime(course.getEndTime());
+                    if (finalUserMap != null && finalUserMap.containsKey(course.getTeacherId())) {
+                        UserInfoDTO teacher = finalUserMap.get(course.getTeacherId());
+                        item.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
+                    } else {
+                        item.setTeacherName("未知教师");
+                    }
                     
                     if (member.getMemberRole() == 2) {
                         assisting.add(item);

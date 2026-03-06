@@ -19,6 +19,9 @@ import com.edu.platform.course.entity.Course;
 import com.edu.platform.course.mapper.CourseMapper;
 import com.edu.platform.course.service.CourseService;
 import com.edu.platform.course.service.SubjectCategoryService;
+import com.edu.platform.course.client.UserServiceClient;
+import com.edu.platform.course.dto.UserInfoDTO;
+import com.edu.platform.common.result.Result;
 import com.edu.platform.course.util.PermissionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +29,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -38,6 +43,7 @@ import java.util.stream.Collectors;
 public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> implements CourseService {
 
     private final SubjectCategoryService subjectCategoryService;
+    private final UserServiceClient userServiceClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -131,9 +137,21 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         CourseDetailResponse response = new CourseDetailResponse();
         BeanUtil.copyProperties(course, response);
 
-        // TODO: 远程调用获取 学校名称, 教师名称
+        try {
+            Result<UserInfoDTO> userResult = userServiceClient.getUserInfo(course.getTeacherId());
+            if (userResult.isSuccess() && userResult.getData() != null) {
+                UserInfoDTO teacher = userResult.getData();
+                response.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
+            } else {
+                response.setTeacherName("未知教师");
+            }
+        } catch (Exception e) {
+            log.error("获取教师信息失败: {}", e.getMessage());
+            response.setTeacherName("未知教师");
+        }
+
+        // TODO: 远程调用获取 学校名称
         response.setSchoolName("Test School");
-        response.setTeacherName("Test Teacher");
         response.setTeacherAvatar("");
 
         return response;
@@ -155,19 +173,38 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
                 .eq(request.getAuditStatus() != null, Course::getAuditStatus, request.getAuditStatus())
                 .eq(request.getTeacherId() != null, Course::getTeacherId, request.getTeacherId());
         
-        // 数据过滤：普通用户只能看已审核且开放的课程
+        // 数据过滤：普通用户只能看已审核，且状态为 1(开放/进行中) 或 2(归档/已结课) 的课程
         if (!isAdmin) {
             // 如果是教师查询自己的课程，不过滤
             if (request.getTeacherId() == null || !request.getTeacherId().equals(currentUserId)) {
-                // 普通用户只能看已审核且开放的课程
                 wrapper.eq(Course::getAuditStatus, 1)
-                       .eq(Course::getStatus, 1);
+                       .in(Course::getStatus, Arrays.asList(1, 2));
             }
         }
         
         wrapper.orderByDesc(Course::getCreatedTime);
 
         Page<Course> coursePage = this.page(page, wrapper);
+
+        // 批量获取教师信息
+        List<Long> teacherIds = coursePage.getRecords().stream()
+                .map(Course::getTeacherId)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        Map<Long, UserInfoDTO> userMap = null;
+        if (!teacherIds.isEmpty()) {
+            try {
+                Result<Map<Long, UserInfoDTO>> userResult = userServiceClient.batchGetUserInfo(teacherIds);
+                if (userResult.isSuccess()) {
+                    userMap = userResult.getData();
+                }
+            } catch (Exception e) {
+                log.error("批量获取教师信息失败: {}", e.getMessage());
+            }
+        }
+        
+        final Map<Long, UserInfoDTO> finalUserMap = userMap;
 
         // 转换 Response
         List<CourseListResponse> list = coursePage.getRecords().stream().map(course -> {
@@ -177,9 +214,15 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             resp.setCover(course.getCourseCover());
             resp.setDescription(course.getCourseIntro());
             resp.setMemberCount(course.getStudentCount());
-            // TODO: 填充名称
+            
+            if (finalUserMap != null && finalUserMap.containsKey(course.getTeacherId())) {
+                UserInfoDTO teacher = finalUserMap.get(course.getTeacherId());
+                resp.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
+            } else {
+                resp.setTeacherName("未知教师");
+            }
+            // TODO: 填充学校名称
             resp.setSchoolName("Test School");
-            resp.setTeacherName("Test Teacher");
             return resp;
         }).collect(Collectors.toList());
 
@@ -236,6 +279,25 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         
         Page<Course> coursePage = this.page(page, wrapper);
         
+        // 批量获取教师信息
+        List<Long> teacherIds = coursePage.getRecords().stream()
+                .map(Course::getTeacherId)
+                .distinct()
+                .collect(Collectors.toList());
+                
+        Map<Long, UserInfoDTO> userMap = null;
+        if (!teacherIds.isEmpty()) {
+            try {
+                Result<Map<Long, UserInfoDTO>> userResult = userServiceClient.batchGetUserInfo(teacherIds);
+                if (userResult.isSuccess()) {
+                    userMap = userResult.getData();
+                }
+            } catch (Exception e) {
+                log.error("批量获取教师信息失败: {}", e.getMessage());
+            }
+        }
+        final Map<Long, UserInfoDTO> finalUserMap = userMap;
+        
         List<CourseListResponse> list = coursePage.getRecords().stream().map(course -> {
             CourseListResponse resp = new CourseListResponse();
             BeanUtil.copyProperties(course, resp);
@@ -243,7 +305,14 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             resp.setDescription(course.getCourseIntro());
             resp.setMemberCount(course.getStudentCount());
             resp.setSchoolName("Test School");
-            resp.setTeacherName("Test Teacher");
+            
+            if (finalUserMap != null && finalUserMap.containsKey(course.getTeacherId())) {
+                UserInfoDTO teacher = finalUserMap.get(course.getTeacherId());
+                resp.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
+            } else {
+                resp.setTeacherName("未知教师");
+            }
+            
             return resp;
         }).collect(Collectors.toList());
         

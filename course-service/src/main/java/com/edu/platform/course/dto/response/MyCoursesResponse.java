@@ -34,9 +34,13 @@ public class MyCoursesResponse {
         private String courseCode;
         private String courseName;
         private String courseCover;
+        private String courseIntro;
         private String subjectArea;
         private Integer myRole;  // 我在该课程中的角色
         private Integer studentCount;
         private Integer status;
+        private Long teacherId;
+        private String teacherName;
+        private java.time.LocalDateTime endTime;
     }
 }
