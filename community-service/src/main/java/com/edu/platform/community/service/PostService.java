@@ -32,9 +32,10 @@ public interface PostService {
      * 话题列表
      * 
      * @param request 查询条件
+     * @param userId 当前用户ID，用于判断是否点赞
      * @return 分页结果
      */
-    Page<PostDetailResponse> listPosts(PostQueryRequest request);
+    Page<PostDetailResponse> listPosts(PostQueryRequest request, Long userId);
     
     /**
      * 查询我的点赞
@@ -49,9 +50,10 @@ public interface PostService {
      * 话题详情
      * 
      * @param postId 话题ID
+     * @param userId 当前用户ID，用于判断是否点赞
      * @return 话题详情
      */
-    PostDetailResponse getPostDetail(Long postId);
+    PostDetailResponse getPostDetail(Long postId, Long userId);
     
     /**
      * 编辑话题

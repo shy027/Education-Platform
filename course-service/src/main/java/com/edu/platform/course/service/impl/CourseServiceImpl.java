@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -138,9 +139,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         BeanUtil.copyProperties(course, response);
 
         try {
-            Result<UserInfoDTO> userResult = userServiceClient.getUserInfo(course.getTeacherId());
-            if (userResult.isSuccess() && userResult.getData() != null) {
-                UserInfoDTO teacher = userResult.getData();
+            Result<Map<Long, UserInfoDTO>> userResult = userServiceClient.batchGetUserInfo(Collections.singletonList(course.getTeacherId()));
+            if (userResult.isSuccess() && userResult.getData() != null && userResult.getData().containsKey(course.getTeacherId())) {
+                UserInfoDTO teacher = userResult.getData().get(course.getTeacherId());
                 response.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
             } else {
                 response.setTeacherName("未知教师");

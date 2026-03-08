@@ -91,6 +91,7 @@ public class UserInterceptor implements HandlerInterceptor {
      */
     private void setSecurityContext(String username, List<String> roles) {
         List<SimpleGrantedAuthority> authorities = roles.stream()
+                .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
         UsernamePasswordAuthenticationToken authentication =

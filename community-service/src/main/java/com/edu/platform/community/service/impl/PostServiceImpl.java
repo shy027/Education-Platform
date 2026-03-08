@@ -42,6 +42,9 @@ public class PostServiceImpl implements PostService {
     private final CommunityPostMapper postMapper;
     private final PermissionUtil permissionUtil;
     
+    @Autowired
+    private com.edu.platform.community.mapper.CommunityPostLikeMapper postLikeMapper;
+    
     @Autowired(required = false)
     private UserServiceClient userServiceClient;
     
@@ -101,11 +104,11 @@ public class PostServiceImpl implements PostService {
         // );
         
         // 返回详情
-        return getPostDetail(post.getId());
+        return getPostDetail(post.getId(), userId);
     }
     
     @Override
-    public Page<PostDetailResponse> listPosts(PostQueryRequest request) {
+    public Page<PostDetailResponse> listPosts(PostQueryRequest request, Long userId) {
         log.info("查询帖子列表, courseId={}, pageNum={}, pageSize={}", 
                 request.getCourseId(), request.getPageNum(), request.getPageSize());
         
@@ -135,7 +138,7 @@ public class PostServiceImpl implements PostService {
         BeanUtils.copyProperties(postPage, responsePage, "records");
         responsePage.setRecords(
             postPage.getRecords().stream()
-                .map(this::convertToResponse)
+                .map(post -> convertToResponse(post, userId))
                 .toList()
         );
         
@@ -163,7 +166,7 @@ public class PostServiceImpl implements PostService {
         BeanUtils.copyProperties(postPage, responsePage, "records");
         responsePage.setRecords(
             postPage.getRecords().stream()
-                .map(this::convertToResponse)
+                .map(post -> convertToResponse(post, userId))
                 .toList()
         );
         
@@ -172,8 +175,8 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PostDetailResponse getPostDetail(Long postId) {
-        log.info("查询帖子详情, postId={}", postId);
+    public PostDetailResponse getPostDetail(Long postId, Long userId) {
+        log.info("查询帖子详情, postId={}, userId={}", postId, userId);
         
         // 查询帖子
         CommunityPost post = postMapper.selectById(postId);
@@ -190,15 +193,27 @@ public class PostServiceImpl implements PostService {
         post.setViewCount(post.getViewCount() + 1);
         
         // 转换为响应DTO
-        return convertToResponse(post);
+        return convertToResponse(post, userId);
     }
     
     /**
      * 转换为响应DTO
      */
-    private PostDetailResponse convertToResponse(CommunityPost post) {
+    private PostDetailResponse convertToResponse(CommunityPost post, Long userId) {
         PostDetailResponse response = new PostDetailResponse();
         BeanUtils.copyProperties(post, response);
+        
+        // 检查当前用户是否已点赞
+        if (userId != null && postLikeMapper != null) {
+            com.edu.platform.community.entity.CommunityPostLike like = postLikeMapper.selectOne(
+                new LambdaQueryWrapper<com.edu.platform.community.entity.CommunityPostLike>()
+                    .eq(com.edu.platform.community.entity.CommunityPostLike::getPostId, post.getId())
+                    .eq(com.edu.platform.community.entity.CommunityPostLike::getUserId, userId)
+            );
+            response.setLiked(like != null);
+        } else {
+            response.setLiked(false);
+        }
         
         // 查询用户信息
         if (userServiceClient != null) {
@@ -253,7 +268,7 @@ public class PostServiceImpl implements PostService {
         log.info("话题编辑成功, postId={}", postId);
         
         // 4. 返回详情
-        return getPostDetail(postId);
+        return getPostDetail(postId, userId);
     }
     
     @Override

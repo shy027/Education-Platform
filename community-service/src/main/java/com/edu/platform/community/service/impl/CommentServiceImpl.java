@@ -49,6 +49,9 @@ public class CommentServiceImpl implements CommentService {
     private AuditRequestSender auditRequestSender;
     
     @Autowired
+    private com.edu.platform.community.mapper.CommunityCommentLikeMapper commentLikeMapper;
+    
+    @Autowired
     public CommentServiceImpl(CommunityCommentMapper commentMapper, 
                              CommunityPostMapper postMapper,
                              PermissionUtil permissionUtil) {
@@ -126,11 +129,11 @@ public class CommentServiceImpl implements CommentService {
         log.info("观点发表成功, commentId={}", comment.getId());
         
         // 返回详情
-        return convertToResponse(comment);
+        return convertToResponse(comment, userId);
     }
     
     @Override
-    public Page<CommentDetailResponse> listComments(CommentQueryRequest request) {
+    public Page<CommentDetailResponse> listComments(CommentQueryRequest request, Long userId) {
         log.info("查询观点列表, postId={}, pageNum={}, pageSize={}", 
                 request.getPostId(), request.getPageNum(), request.getPageSize());
         
@@ -165,12 +168,12 @@ public class CommentServiceImpl implements CommentService {
         // 构建树形结构
         List<CommentDetailResponse> records = pagedTopLevelComments.stream()
                 .map(comment -> {
-                    CommentDetailResponse response = convertToResponse(comment);
+                    CommentDetailResponse response = convertToResponse(comment, userId);
                     // 添加子回复
                     List<CommunityComment> replies = repliesMap.getOrDefault(comment.getId(), new ArrayList<>());
                     response.setReplies(
                         replies.stream()
-                            .map(this::convertToResponse)
+                            .map(reply -> convertToResponse(reply, userId))
                             .collect(Collectors.toList())
                     );
                     return response;
@@ -204,7 +207,7 @@ public class CommentServiceImpl implements CommentService {
         BeanUtils.copyProperties(commentPage, responsePage, "records");
         responsePage.setRecords(
             commentPage.getRecords().stream()
-                .map(this::convertToResponse)
+                .map(comment -> convertToResponse(comment, userId))
                 .toList()
         );
         
@@ -271,9 +274,21 @@ public class CommentServiceImpl implements CommentService {
     /**
      * 转换为响应DTO
      */
-    private CommentDetailResponse convertToResponse(CommunityComment comment) {
+    private CommentDetailResponse convertToResponse(CommunityComment comment, Long userId) {
         CommentDetailResponse response = new CommentDetailResponse();
         BeanUtils.copyProperties(comment, response);
+        
+        // 检查当前用户是否已点赞
+        if (userId != null && commentLikeMapper != null) {
+            com.edu.platform.community.entity.CommunityCommentLike like = commentLikeMapper.selectOne(
+                new LambdaQueryWrapper<com.edu.platform.community.entity.CommunityCommentLike>()
+                    .eq(com.edu.platform.community.entity.CommunityCommentLike::getCommentId, comment.getId())
+                    .eq(com.edu.platform.community.entity.CommunityCommentLike::getUserId, userId)
+            );
+            response.setLiked(like != null);
+        } else {
+            response.setLiked(false);
+        }
         
         // 批量查询用户信息
         List<Long> userIds = new ArrayList<>();

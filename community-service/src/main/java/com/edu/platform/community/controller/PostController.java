@@ -57,7 +57,8 @@ public class PostController {
         request.setPageNum(pageNum);
         request.setPageSize(pageSize);
         
-        Page<PostDetailResponse> page = postService.listPosts(request);
+        Long userId = UserContext.getUserId();
+        Page<PostDetailResponse> page = postService.listPosts(request, userId);
         return Result.success("查询成功", page);
     }
     
@@ -75,7 +76,7 @@ public class PostController {
         request.setPageNum(pageNum);
         request.setPageSize(pageSize);
         
-        Page<PostDetailResponse> page = postService.listPosts(request);
+        Page<PostDetailResponse> page = postService.listPosts(request, userId);
         return Result.success("查询成功", page);
     }
     
@@ -97,7 +98,8 @@ public class PostController {
     @Operation(summary = "帖子详情")
     @GetMapping("/{postId}")
     public Result<PostDetailResponse> getPostDetail(@PathVariable Long postId) {
-        PostDetailResponse response = postService.getPostDetail(postId);
+        Long userId = UserContext.getUserId();
+        PostDetailResponse response = postService.getPostDetail(postId, userId);
         return Result.success("查询成功", response);
     }
     

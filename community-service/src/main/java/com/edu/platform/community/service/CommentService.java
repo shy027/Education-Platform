@@ -31,9 +31,10 @@ public interface CommentService {
      * 观点列表(树形结构)
      * 
      * @param request 查询条件
-     * @return 分页结果(只返回一级观点,每个观点包含其回复列表)
+     * @param userId 当前用户ID，用于判断是否点赞
+     * @return 分页结果
      */
-    Page<CommentDetailResponse> listComments(CommentQueryRequest request);
+    Page<CommentDetailResponse> listComments(CommentQueryRequest request, Long userId);
     
     /**
      * 查询我的观点

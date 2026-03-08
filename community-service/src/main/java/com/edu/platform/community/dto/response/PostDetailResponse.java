@@ -50,6 +50,9 @@ public class PostDetailResponse {
     @Schema(description = "点赞数")
     private Integer likeCount;
     
+    @Schema(description = "是否已点赞")
+    private Boolean liked;
+    
     @Schema(description = "评论数")
     private Integer commentCount;
     

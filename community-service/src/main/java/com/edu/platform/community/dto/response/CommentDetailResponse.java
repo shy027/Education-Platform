@@ -45,6 +45,9 @@ public class CommentDetailResponse {
     @Schema(description = "点赞数")
     private Integer likeCount;
     
+    @Schema(description = "是否已点赞")
+    private Boolean liked;
+    
     @Schema(description = "状态")
     private Integer status;
     

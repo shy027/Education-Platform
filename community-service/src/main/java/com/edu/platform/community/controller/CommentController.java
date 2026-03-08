@@ -53,7 +53,8 @@ public class CommentController {
         request.setPageNum(pageNum);
         request.setPageSize(pageSize);
         
-        Page<CommentDetailResponse> page = commentService.listComments(request);
+        Long userId = UserContext.getUserId();
+        Page<CommentDetailResponse> page = commentService.listComments(request, userId);
         return Result.success("查询成功", page);
     }
     
