@@ -267,6 +267,11 @@ public class ResourceServiceImpl implements ResourceService {
             wrapper.eq(Resource::getCreatorId, request.getCreatorId());
         }
         
+        // 标签筛选
+        if (request.getTagId() != null) {
+            wrapper.inSql(Resource::getId, "SELECT resource_id FROM resource_tag_relation WHERE tag_id = " + request.getTagId());
+        }
+        
         // 按创建时间倒序
         wrapper.orderByDesc(Resource::getCreatedTime);
         
