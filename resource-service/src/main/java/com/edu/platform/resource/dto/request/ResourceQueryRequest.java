@@ -19,6 +19,11 @@ public class ResourceQueryRequest {
      * 分类ID
      */
     private Long categoryId;
+
+    /**
+     * 资源类型: 1-文章, 2-视频, 3-文档, 4-音频
+     */
+    private Integer resourceType;
     
     /**
      * 状态: 0-草稿, 1-待审核, 2-已发布, 3-已拒绝, 4-已下架

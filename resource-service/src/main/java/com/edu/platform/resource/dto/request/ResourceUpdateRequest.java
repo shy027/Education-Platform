@@ -37,6 +37,16 @@ public class ResourceUpdateRequest {
      */
     private Long categoryId;
     
+    /**
+     * 资源类型: 1-文章, 2-视频, 3-文档, 4-音频
+     */
+    private Integer resourceType;
+
+    /**
+     * 便捷上传文件URL
+     */
+    private String fileUrl;
+    
 
     
     /**

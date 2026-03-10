@@ -88,6 +88,7 @@ public class ResourceController {
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Long creatorId,
             @RequestParam(required = false) Long tagId,
+            @RequestParam(required = false) Integer resourceType,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
         
@@ -97,6 +98,7 @@ public class ResourceController {
         request.setStatus(status);
         request.setCreatorId(creatorId);
         request.setTagId(tagId);
+        request.setResourceType(resourceType);
         request.setPageNum(pageNum);
         request.setPageSize(pageSize);
         

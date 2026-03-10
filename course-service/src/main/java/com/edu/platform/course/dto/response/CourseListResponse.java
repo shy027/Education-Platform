@@ -43,4 +43,6 @@ public class CourseListResponse {
     private LocalDateTime startTime;
     
     private LocalDateTime endTime;
+    
+    private Integer auditStatus;
 }

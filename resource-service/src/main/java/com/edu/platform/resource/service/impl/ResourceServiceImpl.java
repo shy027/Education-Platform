@@ -58,6 +58,7 @@ public class ResourceServiceImpl implements ResourceService {
         resource.setSummary(request.getSummary());
         resource.setCoverUrl(request.getCoverUrl());
         resource.setCategoryId(request.getCategoryId());
+        resource.setResourceType(request.getResourceType());
         resource.setCreatorId(userId);
         resource.setViewCount(0);
         resource.setDownloadCount(0);
@@ -98,6 +99,22 @@ public class ResourceServiceImpl implements ResourceService {
                 attachment.setResourceId(resource.getId());
                 attachmentMapper.insert(attachment);
             }
+        } else if (StrUtil.isNotBlank(request.getFileUrl())) {
+            // 便捷上传逻辑：如果提供了 fileUrl 但没有附件列表，自动创建一个附件
+            ResourceAttachment attachment = new ResourceAttachment();
+            attachment.setResourceId(resource.getId());
+            attachment.setFileUrl(request.getFileUrl());
+            attachment.setFileName(request.getTitle()); // 默认使用标题作为文件名
+            // 根据 resourceType 设置初步的 fileType
+            if (request.getResourceType() != null) {
+                switch (request.getResourceType()) {
+                    case 2: attachment.setFileType("video"); break;
+                    case 3: attachment.setFileType("pdf"); break;
+                    case 4: attachment.setFileType("audio"); break;
+                    default: attachment.setFileType("other");
+                }
+            }
+            attachmentMapper.insert(attachment);
         }
         
         log.info("创建资源成功: resourceId={}, userId={}, role={}", resource.getId(), userId, userRole);
@@ -144,6 +161,9 @@ public class ResourceServiceImpl implements ResourceService {
         if (request.getCategoryId() != null) {
             resource.setCategoryId(request.getCategoryId());
         }
+        if (request.getResourceType() != null) {
+            resource.setResourceType(request.getResourceType());
+        }
         
         resourceMapper.updateById(resource);
         
@@ -177,6 +197,25 @@ public class ResourceServiceImpl implements ResourceService {
                 attachment.setResourceId(resourceId);
                 attachmentMapper.insert(attachment);
             }
+        } else if (StrUtil.isNotBlank(request.getFileUrl())) {
+            // 便捷上传更新逻辑
+            LambdaQueryWrapper<ResourceAttachment> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(ResourceAttachment::getResourceId, resourceId);
+            attachmentMapper.delete(wrapper);
+
+            ResourceAttachment attachment = new ResourceAttachment();
+            attachment.setResourceId(resourceId);
+            attachment.setFileUrl(request.getFileUrl());
+            attachment.setFileName(resource.getTitle());
+            if (resource.getResourceType() != null) {
+                switch (resource.getResourceType()) {
+                    case 2: attachment.setFileType("video"); break;
+                    case 3: attachment.setFileType("pdf"); break;
+                    case 4: attachment.setFileType("audio"); break;
+                    default: attachment.setFileType("other");
+                }
+            }
+            attachmentMapper.insert(attachment);
         }
         
         log.info("更新资源成功: resourceId={}, userId={}", resourceId, userId);
@@ -255,6 +294,11 @@ public class ResourceServiceImpl implements ResourceService {
         // 分类筛选
         if (request.getCategoryId() != null) {
             wrapper.eq(Resource::getCategoryId, request.getCategoryId());
+        }
+
+        // 类型筛选
+        if (request.getResourceType() != null) {
+            wrapper.eq(Resource::getResourceType, request.getResourceType());
         }
         
         // 状态筛选

@@ -50,7 +50,6 @@ public class TaskCreateRequest {
     /**
      * 开始时间
      */
-    @NotNull(message = "开始时间不能为空")
     private LocalDateTime startTime;
     
     /**

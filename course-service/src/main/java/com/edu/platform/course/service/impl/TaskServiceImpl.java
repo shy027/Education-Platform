@@ -71,6 +71,12 @@ public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> i
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权创建任务");
         }
         
+        // 业务校验：如果为测验或考试，必须要有起止时间
+        if ((request.getTaskType() == 2 || request.getTaskType() == 3) 
+            && (request.getStartTime() == null || request.getEndTime() == null)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "测验和考试必须设置开始时间和截止时间");
+        }
+        
         // 业务校验：如果设置了结束时间，结束时间必须晚于开始时间
         if (request.getEndTime() != null && request.getEndTime().isBefore(request.getStartTime())) {
             throw new BusinessException(ResultCode.FAIL.getCode(), "结束时间必须晚于开始时间");
@@ -81,7 +87,7 @@ public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> i
         BeanUtil.copyProperties(request, task);
         task.setCreatorId(currentUserId);
         task.setSubmitCount(0);
-        task.setStatus(0); // 默认草稿状态
+        task.setStatus(1); // 默认发布状态
         
         this.save(task);
         return task.getId();

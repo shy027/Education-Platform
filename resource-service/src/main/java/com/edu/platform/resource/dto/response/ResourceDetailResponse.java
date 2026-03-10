@@ -42,6 +42,11 @@ public class ResourceDetailResponse {
      * 分类ID
      */
     private Long categoryId;
+
+    /**
+     * 资源类型: 1-文章, 2-视频, 3-文档, 4-音频
+     */
+    private Integer resourceType;
     
     /**
      * 分类名称

@@ -23,19 +23,24 @@ public class AuditRequestSender {
     /**
      * 发送课件审核请求
      *
-     * @param coursewareId 课件ID
-     * @param creatorId    创建者ID
-     * @param title        课件标题
-     * @param preview      预览内容(描述)
+     * @param coursewareId  课件ID
+     * @param creatorId     创建者ID
+     * @param title         课件标题
+     * @param preview       预览内容(描述)
+     * @param initialResult 初始审核结果: 0-待审核, 1-默认通过
+     * @param auditReason   审核原因
      */
     public void sendCoursewareAuditRequest(Long coursewareId, Long creatorId,
-                                            String title, String preview) {
+                                            String title, String preview,
+                                            Integer initialResult, String auditReason) {
         AuditRequestMessage message = AuditRequestMessage.builder()
                 .contentType("COURSEWARE")
                 .contentId(coursewareId)
                 .creatorId(creatorId)
                 .contentTitle(title)
                 .contentPreview(preview)
+                .initialAuditResult(initialResult)
+                .auditReason(auditReason)
                 .build();
         sendAuditRequest(message);
     }

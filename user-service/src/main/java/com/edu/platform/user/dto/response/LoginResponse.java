@@ -55,6 +55,16 @@ public class LoginResponse {
         private Long schoolId;
         
         /**
+         * 手机号
+         */
+        private String phone;
+        
+        /**
+         * 邮箱
+         */
+        private String email;
+        
+        /**
          * 所属学校名称
          */
         private String schoolName;

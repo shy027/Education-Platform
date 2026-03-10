@@ -72,7 +72,7 @@ public class CoursewareServiceImpl implements CoursewareService {
         courseware.setCreatorId(userId);
         courseware.setViewCount(0);
         courseware.setDownloadCount(0);
-        courseware.setAuditStatus(0); // 待审核
+        courseware.setAuditStatus(1); // 默认已通过审核
         courseware.setStatus(1); // 启用
         
         coursewareMapper.insert(courseware);
@@ -82,7 +82,9 @@ public class CoursewareServiceImpl implements CoursewareService {
                 courseware.getId(),
                 userId,
                 courseware.getWareTitle(),
-                request.getDescription()
+                request.getDescription(),
+                1, // 初始审核结果: 1-默认通过
+                "教师发布内容，系统自动审核通过"
         );
         
         log.info("课件上传成功: wareId={}, courseId={}, userId={}", 
@@ -157,9 +159,27 @@ public class CoursewareServiceImpl implements CoursewareService {
         LambdaQueryWrapper<CourseCourseware> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CourseCourseware::getCourseId, courseId)
                .eq(request.getChapterId() != null, CourseCourseware::getChapterId, request.getChapterId())
-               .eq(request.getWareType() != null, CourseCourseware::getWareType, request.getWareType())
-               .eq(request.getAuditStatus() != null, CourseCourseware::getAuditStatus, request.getAuditStatus())
-               .orderByAsc(CourseCourseware::getSortOrder)
+               .eq(request.getWareType() != null, CourseCourseware::getWareType, request.getWareType());
+
+        // 权限过滤：非管理人员只能看到已审核通过的课件
+        Long currentUserId = com.edu.platform.common.utils.UserContext.getUserId();
+        boolean hasManagePermission = false;
+        if (PermissionUtil.isAdminOrLeader()) {
+            hasManagePermission = true;
+        } else if (currentUserId != null) {
+            Course course = courseMapper.selectById(courseId);
+            if (course != null && course.getTeacherId().equals(currentUserId)) {
+                hasManagePermission = true;
+            }
+        }
+
+        if (hasManagePermission) {
+            wrapper.eq(request.getAuditStatus() != null, CourseCourseware::getAuditStatus, request.getAuditStatus());
+        } else {
+            wrapper.eq(CourseCourseware::getAuditStatus, 1);
+        }
+
+        wrapper.orderByAsc(CourseCourseware::getSortOrder)
                .orderByDesc(CourseCourseware::getCreatedTime);
         
         // 分页查询

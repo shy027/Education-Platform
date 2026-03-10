@@ -128,9 +128,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         boolean isAdmin = PermissionUtil.isAdminOrLeader();
         boolean isTeacher = course.getTeacherId().equals(currentUserId);
         
-        // 普通用户只能看已审核且开放的课程
+        // 普通用户只能看已审核且开放或已结课的课程
         if (!isAdmin && !isTeacher) {
-            if (course.getAuditStatus() != 1 || course.getStatus() != 1) {
+            if (course.getAuditStatus() != 1 || (course.getStatus() != 1 && course.getStatus() != 2)) {
                 throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "课程未开放或未审核");
             }
         }

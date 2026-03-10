@@ -41,6 +41,8 @@ public class MyCoursesResponse {
         private Integer status;
         private Long teacherId;
         private String teacherName;
+        private java.time.LocalDateTime startTime;
         private java.time.LocalDateTime endTime;
+        private Integer auditStatus;
     }
 }

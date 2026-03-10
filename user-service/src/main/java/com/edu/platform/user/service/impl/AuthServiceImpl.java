@@ -131,6 +131,8 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setUsername(user.getUsername());
         userInfo.setRealName(user.getRealName());
         userInfo.setAvatar(user.getAvatarUrl());
+        userInfo.setPhone(user.getPhone());
+        userInfo.setEmail(user.getEmail());
         userInfo.setRoles(roles);
         
         // 获取用户第一个学校
@@ -366,6 +368,8 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setUsername(user.getUsername());
         userInfo.setRealName(user.getRealName());
         userInfo.setAvatar(user.getAvatarUrl());
+        userInfo.setPhone(user.getPhone());
+        userInfo.setEmail(user.getEmail());
         userInfo.setRoles(roles);
         
         // 获取用户第一个学校

@@ -256,7 +256,9 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
             item.setStatus(course.getStatus());
             item.setCourseIntro(course.getCourseIntro());
             item.setTeacherId(course.getTeacherId());
+            item.setStartTime(course.getStartTime());
             item.setEndTime(course.getEndTime());
+            item.setAuditStatus(course.getAuditStatus());
             if (finalUserMap != null && finalUserMap.containsKey(course.getTeacherId())) {
                 UserInfoDTO teacher = finalUserMap.get(course.getTeacherId());
                 item.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
@@ -289,7 +291,9 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
                     item.setStatus(course.getStatus());
                     item.setCourseIntro(course.getCourseIntro());
                     item.setTeacherId(course.getTeacherId());
+                    item.setStartTime(course.getStartTime());
                     item.setEndTime(course.getEndTime());
+                    item.setAuditStatus(course.getAuditStatus());
                     if (finalUserMap != null && finalUserMap.containsKey(course.getTeacherId())) {
                         UserInfoDTO teacher = finalUserMap.get(course.getTeacherId());
                         item.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
