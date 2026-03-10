@@ -133,6 +133,13 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setAvatar(user.getAvatarUrl());
         userInfo.setRoles(roles);
         
+        // 获取用户第一个学校
+        UserSchool firstSchool = getFirstUserSchool(user.getId());
+        if (firstSchool != null) {
+            userInfo.setSchoolId(firstSchool.getId());
+            userInfo.setSchoolName(firstSchool.getSchoolName());
+        }
+        
         response.setUserInfo(userInfo);
         
         log.info("用户登录成功: userId={}, username={}", user.getId(), user.getUsername());
@@ -360,9 +367,31 @@ public class AuthServiceImpl implements AuthService {
         userInfo.setRealName(user.getRealName());
         userInfo.setAvatar(user.getAvatarUrl());
         userInfo.setRoles(roles);
+        
+        // 获取用户第一个学校
+        UserSchool firstSchool = getFirstUserSchool(user.getId());
+        if (firstSchool != null) {
+            userInfo.setSchoolId(firstSchool.getId());
+            userInfo.setSchoolName(firstSchool.getSchoolName());
+        }
+        
         response.setUserInfo(userInfo);
         
         return response;
+    }
+    
+    /**
+     * 获取用户的第一个学校（按加入时间升序）
+     */
+    private UserSchool getFirstUserSchool(Long userId) {
+        LambdaQueryWrapper<UserSchoolMember> mw = new LambdaQueryWrapper<>();
+        mw.eq(UserSchoolMember::getUserId, userId);
+        mw.eq(UserSchoolMember::getStatus, 1);
+        mw.orderByAsc(UserSchoolMember::getJoinTime);
+        mw.last("LIMIT 1");
+        UserSchoolMember member = userSchoolMemberMapper.selectOne(mw);
+        if (member == null) return null;
+        return userSchoolMapper.selectById(member.getSchoolId());
     }
     
 }

@@ -48,6 +48,16 @@ public class LoginResponse {
          * 角色列表
          */
         private List<String> roles;
+        
+        /**
+         * 所属学校ID（取第一个学校）
+         */
+        private Long schoolId;
+        
+        /**
+         * 所属学校名称
+         */
+        private String schoolName;
     }
     
 }
