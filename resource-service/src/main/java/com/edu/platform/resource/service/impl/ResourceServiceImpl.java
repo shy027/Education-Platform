@@ -316,8 +316,12 @@ public class ResourceServiceImpl implements ResourceService {
             wrapper.inSql(Resource::getId, "SELECT resource_id FROM resource_tag_relation WHERE tag_id = " + request.getTagId());
         }
         
-        // 按创建时间倒序
-        wrapper.orderByDesc(Resource::getCreatedTime);
+        // 排序方式
+        if ("views".equals(request.getSortMode())) {
+            wrapper.orderByDesc(Resource::getViewCount);
+        } else {
+            wrapper.orderByDesc(Resource::getCreatedTime);
+        }
         
         Page<Resource> resultPage = resourceMapper.selectPage(page, wrapper);
         
@@ -569,4 +573,11 @@ public class ResourceServiceImpl implements ResourceService {
         log.info("资源审核状态已更新: resourceId={}, auditStatus={}, auditorId={}", resourceId, auditStatus, auditorId);
     }
 
+    @Override
+    public List<Resource> listByIds(List<Long> resourceIds) {
+        if (resourceIds == null || resourceIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return resourceMapper.selectBatchIds(resourceIds);
+    }
 }

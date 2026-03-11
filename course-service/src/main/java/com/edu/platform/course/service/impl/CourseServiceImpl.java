@@ -170,11 +170,27 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
                 .eq(request.getSchoolId() != null, Course::getSchoolId, request.getSchoolId())
                 .eq(StrUtil.isNotBlank(request.getSubjectArea()), Course::getSubjectArea, request.getSubjectArea())
                 .eq(request.getJoinType() != null, Course::getJoinType, request.getJoinType())
-                .eq(request.getStatus() != null, Course::getStatus, request.getStatus())
                 .eq(request.getAuditStatus() != null, Course::getAuditStatus, request.getAuditStatus())
                 .eq(request.getTeacherId() != null, Course::getTeacherId, request.getTeacherId());
         
-        // 数据过滤：普通用户只能看已审核，且状态为 1(开放/进行中) 或 2(归档/已结课) 的课程
+        // 处理前端传入的基于时间的计算状态 (0:未开放, 1:进行中, 2:已结课)
+        // 注意前端此时借用了 status 字段传递这个时间维度的查询诉求
+        if (request.getStatus() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            if (request.getStatus() == 0) {
+                // 暂未开放: startTime > now
+                wrapper.gt(Course::getStartTime, now);
+            } else if (request.getStatus() == 1) {
+                // 进行中: (startTime <= now or null) AND (endTime > now or null)
+                wrapper.and(w -> w.isNull(Course::getStartTime).or().le(Course::getStartTime, now))
+                       .and(w -> w.isNull(Course::getEndTime).or().gt(Course::getEndTime, now));
+            } else if (request.getStatus() == 2) {
+                // 已结课: endTime <= now
+                wrapper.le(Course::getEndTime, now);
+            }
+        }
+        
+        // 数据过滤：普通用户只能看已审核，且原状态为 1(开放) 或 2(归档) 的课程
         if (!isAdmin) {
             // 如果是教师查询自己的课程，不过滤
             if (request.getTeacherId() == null || !request.getTeacherId().equals(currentUserId)) {

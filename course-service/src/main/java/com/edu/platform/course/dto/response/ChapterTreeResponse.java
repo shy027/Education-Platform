@@ -26,4 +26,9 @@ public class ChapterTreeResponse {
      * 子章节
      */
     private List<ChapterTreeResponse> children;
+    
+    /**
+     * 关联资源列表
+     */
+    private List<ChapterResourceResponse> resourceList;
 }

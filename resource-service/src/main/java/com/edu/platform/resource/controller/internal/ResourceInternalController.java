@@ -34,6 +34,29 @@ public class ResourceInternalController {
         return Result.success();
     }
 
+    /**
+     * 批量获取资源信息（由course-service调用）
+     */
+    @Operation(summary = "批量获取资源信息")
+    @PostMapping("/batch")
+    public Result<java.util.List<com.edu.platform.resource.dto.response.ResourceResponse>> getResourcesByIds(
+            @RequestBody java.util.List<Long> resourceIds) {
+        if (cn.hutool.core.collection.CollUtil.isEmpty(resourceIds)) {
+            return Result.success(new java.util.ArrayList<>());
+        }
+        
+        java.util.List<com.edu.platform.resource.entity.Resource> resources = resourceService.listByIds(resourceIds);
+        java.util.List<com.edu.platform.resource.dto.response.ResourceResponse> responseList = resources.stream()
+                .map(res -> {
+                    com.edu.platform.resource.dto.response.ResourceResponse resp = new com.edu.platform.resource.dto.response.ResourceResponse();
+                    cn.hutool.core.bean.BeanUtil.copyProperties(res, resp);
+                    return resp;
+                })
+                .collect(java.util.stream.Collectors.toList());
+                
+        return Result.success(responseList);
+    }
+
     @Data
     public static class UpdateAuditStatusRequest {
         /** 审核状态: 1-通过, 2-拒绝 */

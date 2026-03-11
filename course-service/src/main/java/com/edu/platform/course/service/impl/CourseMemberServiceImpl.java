@@ -86,6 +86,10 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
             member.setJoinStatus(1);
             member.setJoinTime(LocalDateTime.now());
             member.setApproveTime(LocalDateTime.now());
+            
+            // 更新课程参与人数
+            course.setStudentCount((course.getStudentCount() == null ? 0 : course.getStudentCount()) + 1);
+            courseService.updateById(course);
         } else {
             // 需审批
             member.setJoinStatus(0);
@@ -120,6 +124,10 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
         
         member.setJoinStatus(3); // 已退出
         this.updateById(member);
+        
+        // 更新课程参与人数
+        course.setStudentCount(Math.max(0, (course.getStudentCount() == null ? 0 : course.getStudentCount()) - 1));
+        courseService.updateById(course);
     }
 
     @Override
@@ -153,6 +161,15 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
         member.setApproverId(currentUserId);
         
         this.updateById(member);
+        
+        // 如果审核通过，增加课程参与人数
+        if (request.getApproved()) {
+            Course course = courseService.getById(courseId);
+            if (course != null) {
+                course.setStudentCount((course.getStudentCount() == null ? 0 : course.getStudentCount()) + 1);
+                courseService.updateById(course);
+            }
+        }
     }
 
     @Override
@@ -355,6 +372,10 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
         member.setApproverId(currentUserId);
         
         this.saveOrUpdate(member);
+        
+        // 更新课程参与人数
+        course.setStudentCount((course.getStudentCount() == null ? 0 : course.getStudentCount()) + 1);
+        courseService.updateById(course);
     }
     
     @Override
@@ -388,6 +409,10 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
         // 逻辑删除：设置为已退出
         member.setJoinStatus(3);
         this.updateById(member);
+        
+        // 更新课程参与人数
+        course.setStudentCount(Math.max(0, (course.getStudentCount() == null ? 0 : course.getStudentCount()) - 1));
+        courseService.updateById(course);
     }
     
     @Override

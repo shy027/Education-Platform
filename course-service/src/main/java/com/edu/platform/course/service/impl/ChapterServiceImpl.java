@@ -7,12 +7,17 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.ResultCode;
 import com.edu.platform.common.utils.UserContext;
+import com.edu.platform.common.result.Result;
+import com.edu.platform.course.client.ResourceClient;
 import com.edu.platform.course.dto.request.ChapterCreateRequest;
 import com.edu.platform.course.dto.request.ChapterUpdateRequest;
+import com.edu.platform.course.dto.response.ChapterResourceResponse;
 import com.edu.platform.course.dto.response.ChapterTreeResponse;
 import com.edu.platform.course.entity.Course;
 import com.edu.platform.course.entity.CourseChapter;
+import com.edu.platform.course.entity.CourseChapterResource;
 import com.edu.platform.course.mapper.CourseChapterMapper;
+import com.edu.platform.course.mapper.CourseChapterResourceMapper;
 import com.edu.platform.course.service.ChapterService;
 import com.edu.platform.course.service.CourseService;
 import com.edu.platform.course.util.PermissionUtil;
@@ -36,6 +41,8 @@ import java.util.stream.Collectors;
 public class ChapterServiceImpl extends ServiceImpl<CourseChapterMapper, CourseChapter> implements ChapterService {
 
     private final CourseService courseService;
+    private final CourseChapterResourceMapper chapterResourceMapper;
+    private final ResourceClient resourceClient;
 
     @Override
     public List<ChapterTreeResponse> getChapterTree(Long courseId) {
@@ -71,7 +78,70 @@ public class ChapterServiceImpl extends ServiceImpl<CourseChapterMapper, CourseC
             fillChildren(root, childrenMap);
         }
 
+        // 4. 装配关联的资源信息
+        assembleResources(allNodes);
+
         return rootNodes;
+    }
+
+    private void assembleResources(List<ChapterTreeResponse> allNodes) {
+        if (CollUtil.isEmpty(allNodes)) return;
+        List<Long> chapterIds = allNodes.stream().map(ChapterTreeResponse::getId).collect(Collectors.toList());
+        
+        // 查询所有关联记录
+        List<CourseChapterResource> rels = chapterResourceMapper.selectList(
+                new LambdaQueryWrapper<CourseChapterResource>()
+                        .in(CourseChapterResource::getChapterId, chapterIds)
+                        .orderByAsc(CourseChapterResource::getCreatedTime)
+        );
+        if (CollUtil.isEmpty(rels)) return;
+        
+        // 收集所有去重的 resourceId
+        List<Long> resourceIds = rels.stream().map(CourseChapterResource::getResourceId).distinct().collect(Collectors.toList());
+        
+        // 远程调用 resource-service 批量获取资源详情
+        Map<Long, Map<String, Object>> resourceMap = new java.util.HashMap<>();
+        try {
+            Result<List<Map<String, Object>>> r = resourceClient.getResourcesByIds(resourceIds);
+            if (r.isSuccess() && r.getData() != null) {
+                for (Map<String, Object> map : r.getData()) {
+                    Long id = Long.valueOf(String.valueOf(map.get("id")));
+                    resourceMap.put(id, map);
+                }
+            }
+        } catch (Exception e) {
+            log.error("远程调用资源微服务获取资源详情失败", e);
+        }
+        
+        // 分组装配到各自的章节
+        Map<Long, List<ChapterResourceResponse>> chapterResMap = rels.stream()
+                .map(rel -> {
+                    ChapterResourceResponse crr = new ChapterResourceResponse();
+                    crr.setId(rel.getId());
+                    crr.setResourceId(rel.getResourceId());
+                    crr.setBindTime(rel.getCreatedTime());
+                    
+                    Map<String, Object> data = resourceMap.get(rel.getResourceId());
+                    if (data != null) {
+                        crr.setTitle(String.valueOf(data.get("title")));
+                        crr.setCoverUrl(data.get("coverUrl") == null ? null : String.valueOf(data.get("coverUrl")));
+                        crr.setFileUrl(data.get("fileUrl") == null ? null : String.valueOf(data.get("fileUrl")));
+                        if (data.get("resourceType") != null) {
+                            crr.setResourceType(Integer.valueOf(String.valueOf(data.get("resourceType"))));
+                        }
+                    } else {
+                        crr.setTitle("资源不存在或已删除");
+                    }
+                    return java.util.Map.entry(rel.getChapterId(), crr);
+                })
+                .collect(Collectors.groupingBy(
+                        java.util.Map.Entry::getKey,
+                        Collectors.mapping(java.util.Map.Entry::getValue, Collectors.toList())
+                ));
+                
+        for (ChapterTreeResponse node : allNodes) {
+            node.setResourceList(chapterResMap.getOrDefault(node.getId(), new ArrayList<>()));
+        }
     }
 
     private void fillChildren(ChapterTreeResponse parent, Map<Long, List<ChapterTreeResponse>> childrenMap) {

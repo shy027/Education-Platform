@@ -125,5 +125,12 @@ public interface ResourceService {
      * @param auditRemark 审核备注
      */
     void updateAuditStatus(Long resourceId, Integer auditStatus, Long auditorId, String auditRemark);
-    
+
+    /**
+     * 根据 ID 批量获取资源
+     *
+     * @param resourceIds 资源ID集合
+     * @return 资源集合
+     */
+    List<com.edu.platform.resource.entity.Resource> listByIds(List<Long> resourceIds);
 }

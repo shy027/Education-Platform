@@ -52,4 +52,9 @@ public class ResourceQueryRequest {
      */
     private Integer pageSize = 10;
     
+    /**
+     * 排序方式 (newest/views)
+     */
+    private String sortMode;
+    
 }
