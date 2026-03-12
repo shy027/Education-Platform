@@ -58,5 +58,8 @@ public class GrowthTrackResponse {
         
         @Schema(description = "维度5得分")
         private BigDecimal dimension5Score;
+        
+        @Schema(description = "维度6得分")
+        private BigDecimal dimension6Score;
     }
 }

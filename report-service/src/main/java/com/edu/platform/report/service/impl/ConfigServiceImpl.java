@@ -85,55 +85,57 @@ public class ConfigServiceImpl implements ConfigService {
     }
     
     @Override
-    public String getProfileWeights() {
-        return getConfigValue("profile.weights");
-    }
-    
-    @Override
     public Map<String, BigDecimal> getDimensionWeights() {
-        String weightsJson = getProfileWeights();
+        String weightsJson = getConfigValue("profile.dimension_weights");
         if (weightsJson == null) {
-            // 返回默认权重
+            // 返回默认权重 (6维)
             Map<String, BigDecimal> defaultWeights = new HashMap<>();
-            defaultWeights.put("dimension_1", new BigDecimal("0.20"));
+            defaultWeights.put("dimension_1", new BigDecimal("0.15"));
             defaultWeights.put("dimension_2", new BigDecimal("0.20"));
-            defaultWeights.put("dimension_3", new BigDecimal("0.20"));
-            defaultWeights.put("dimension_4", new BigDecimal("0.20"));
-            defaultWeights.put("dimension_5", new BigDecimal("0.20"));
+            defaultWeights.put("dimension_3", new BigDecimal("0.15"));
+            defaultWeights.put("dimension_4", new BigDecimal("0.15"));
+            defaultWeights.put("dimension_5", new BigDecimal("0.15"));
+            defaultWeights.put("dimension_6", new BigDecimal("0.20"));
             return defaultWeights;
         }
         
         try {
-            // 解析整个配置
-            Map<String, Object> weights = objectMapper.readValue(weightsJson, new TypeReference<Map<String, Object>>() {});
-            
-            // 提取dimensionWeights部分
-            if (weights.containsKey("dimensionWeights")) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> dimensionWeights = (Map<String, Object>) weights.get("dimensionWeights");
-                
-                // 转换为BigDecimal
-                Map<String, BigDecimal> result = new HashMap<>();
-                for (Map.Entry<String, Object> entry : dimensionWeights.entrySet()) {
-                    result.put(entry.getKey(), new BigDecimal(entry.getValue().toString()));
-                }
-                return result;
+            Map<String, Object> dimensionWeights = objectMapper.readValue(weightsJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, BigDecimal> result = new HashMap<>();
+            for (Map.Entry<String, Object> entry : dimensionWeights.entrySet()) {
+                result.put(entry.getKey(), new BigDecimal(entry.getValue().toString()));
             }
-            
-            // 如果没有dimensionWeights,返回默认值
-            log.warn("配置中未找到dimensionWeights,使用默认值");
-            Map<String, BigDecimal> defaultWeights = new HashMap<>();
-            defaultWeights.put("dimension_1", new BigDecimal("0.20"));
-            defaultWeights.put("dimension_2", new BigDecimal("0.20"));
-            defaultWeights.put("dimension_3", new BigDecimal("0.20"));
-            defaultWeights.put("dimension_4", new BigDecimal("0.20"));
-            defaultWeights.put("dimension_5", new BigDecimal("0.20"));
-            return defaultWeights;
-            
+            return result;
         } catch (Exception e) {
-            log.error("解析权重配置失败", e);
+            log.error("解析维度权重配置失败", e);
             return new HashMap<>();
         }
+    }
+
+    @Override
+    public Map<String, String> getDimensionNames() {
+        String namesJson = getConfigValue("profile.dimension_names");
+        if (namesJson == null) {
+            Map<String, String> defaultNames = new HashMap<>();
+            defaultNames.put("dimension1", "专业理论");
+            defaultNames.put("dimension2", "技术技能");
+            defaultNames.put("dimension3", "职业认同");
+            defaultNames.put("dimension4", "工艺创新");
+            defaultNames.put("dimension5", "社会责任");
+            defaultNames.put("dimension6", "持续发展");
+            return defaultNames;
+        }
+        try {
+            return objectMapper.readValue(namesJson, new TypeReference<Map<String, String>>() {});
+        } catch (Exception e) {
+            log.error("解析维度名称配置失败", e);
+            return new HashMap<>();
+        }
+    }
+
+    @Override
+    public String getBehaviorWeights() {
+        return getConfigValue("profile.behavior_weights");
     }
     
     
@@ -141,28 +143,12 @@ public class ConfigServiceImpl implements ConfigService {
     @Transactional(rollbackFor = Exception.class)
     public void updateDimensionWeights(Map<String, BigDecimal> weights) {
         try {
-            // 1. 获取当前完整配置
-            String weightsJson = getProfileWeights();
-            Map<String, Object> fullConfig;
-            
-            if (weightsJson != null) {
-                fullConfig = objectMapper.readValue(weightsJson, new TypeReference<Map<String, Object>>() {});
-            } else {
-                fullConfig = new HashMap<>();
-            }
-            
-            // 2. 只更新dimensionWeights部分,保留behaviorWeights和levelThresholds
             Map<String, Object> dimensionWeights = new HashMap<>();
             for (Map.Entry<String, BigDecimal> entry : weights.entrySet()) {
                 dimensionWeights.put(entry.getKey(), entry.getValue().doubleValue());
             }
-            
-            fullConfig.put("dimensionWeights", dimensionWeights);
-            
-            // 3. 保存回数据库
-            String updatedJson = objectMapper.writeValueAsString(fullConfig);
-            updateConfig("profile.weights", updatedJson);
-            
+            String updatedJson = objectMapper.writeValueAsString(dimensionWeights);
+            updateConfig("profile.dimension_weights", updatedJson);
             log.info("维度权重更新成功: {}", dimensionWeights);
         } catch (Exception e) {
             log.error("更新维度权重失败", e);
@@ -173,82 +159,85 @@ public class ConfigServiceImpl implements ConfigService {
     @Override
     public BigDecimal getExcellentThreshold() {
         try {
-            String weightsJson = getProfileWeights();
-            if (weightsJson != null) {
-                Map<String, Object> weights = objectMapper.readValue(weightsJson, new TypeReference<Map<String, Object>>() {});
-                Map<String, Object> levelThresholds = (Map<String, Object>) weights.get("levelThresholds");
-                if (levelThresholds != null && levelThresholds.containsKey("excellent")) {
-                    Object excellent = levelThresholds.get("excellent");
-                    return new BigDecimal(excellent.toString());
+            String thresholdJson = getConfigValue("profile.level_thresholds");
+            if (thresholdJson != null) {
+                Map<String, Object> thresholds = objectMapper.readValue(thresholdJson, new TypeReference<Map<String, Object>>() {});
+                if (thresholds.containsKey("excellent")) {
+                    return new BigDecimal(thresholds.get("excellent").toString());
                 }
             }
         } catch (Exception e) {
-            log.warn("从profile.weights获取优秀阈值失败,使用默认值", e);
+            log.warn("获取优秀阈值失败,使用默认值", e);
         }
-        return new BigDecimal("85.00");
+        return new BigDecimal("90.00");
     }
     
     @Override
     public BigDecimal getGoodThreshold() {
         try {
-            String weightsJson = getProfileWeights();
-            if (weightsJson != null) {
-                Map<String, Object> weights = objectMapper.readValue(weightsJson, new TypeReference<Map<String, Object>>() {});
-                Map<String, Object> levelThresholds = (Map<String, Object>) weights.get("levelThresholds");
-                if (levelThresholds != null && levelThresholds.containsKey("good")) {
-                    Object good = levelThresholds.get("good");
-                    return new BigDecimal(good.toString());
+            String thresholdJson = getConfigValue("profile.level_thresholds");
+            if (thresholdJson != null) {
+                Map<String, Object> thresholds = objectMapper.readValue(thresholdJson, new TypeReference<Map<String, Object>>() {});
+                if (thresholds.containsKey("good")) {
+                    return new BigDecimal(thresholds.get("good").toString());
                 }
             }
         } catch (Exception e) {
-            log.warn("从profile.weights获取良好阈值失败,使用默认值", e);
+            log.warn("获取良好阈值失败,使用默认值", e);
         }
-        return new BigDecimal("75.00");
+        return new BigDecimal("80.00");
     }
     
     @Override
     public BigDecimal getPassThreshold() {
         try {
-            String weightsJson = getProfileWeights();
-            if (weightsJson != null) {
-                Map<String, Object> weights = objectMapper.readValue(weightsJson, new TypeReference<Map<String, Object>>() {});
-                Map<String, Object> levelThresholds = (Map<String, Object>) weights.get("levelThresholds");
-                if (levelThresholds != null && levelThresholds.containsKey("pass")) {
-                    Object pass = levelThresholds.get("pass");
-                    return new BigDecimal(pass.toString());
+            String thresholdJson = getConfigValue("profile.level_thresholds");
+            if (thresholdJson != null) {
+                Map<String, Object> thresholds = objectMapper.readValue(thresholdJson, new TypeReference<Map<String, Object>>() {});
+                if (thresholds.containsKey("pass")) {
+                    return new BigDecimal(thresholds.get("pass").toString());
                 }
             }
         } catch (Exception e) {
-            log.warn("从profile.weights获取合格阈值失败,使用默认值", e);
+            log.warn("获取合格阈值失败,使用默认值", e);
         }
         return new BigDecimal("60.00");
+    }
+    
+    @Override
+    public Map<String, BigDecimal> getLevelThresholds() {
+        try {
+            String thresholdJson = getConfigValue("profile.level_thresholds");
+            if (thresholdJson != null) {
+                Map<String, Object> thresholds = objectMapper.readValue(thresholdJson, new TypeReference<Map<String, Object>>() {});
+                Map<String, BigDecimal> result = new HashMap<>();
+                for (Map.Entry<String, Object> entry : thresholds.entrySet()) {
+                    result.put(entry.getKey(), new BigDecimal(entry.getValue().toString()));
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("获取等级阈值配置失败,使用默认值", e);
+        }
+        
+        Map<String, BigDecimal> defaultThresholds = new HashMap<>();
+        defaultThresholds.put("excellent", new BigDecimal("90.00"));
+        defaultThresholds.put("good", new BigDecimal("80.00"));
+        defaultThresholds.put("pass", new BigDecimal("60.00"));
+        return defaultThresholds;
     }
     
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateLevelThresholds(Map<String, BigDecimal> thresholds) {
         try {
-            // 1. 获取当前完整配置
-            String weightsJson = getProfileWeights();
-            Map<String, Object> weights;
-            
-            if (weightsJson != null) {
-                weights = objectMapper.readValue(weightsJson, new TypeReference<Map<String, Object>>() {});
-            } else {
-                weights = new HashMap<>();
-            }
-            
-            // 2. 更新levelThresholds部分
             Map<String, Object> levelThresholds = new HashMap<>();
             levelThresholds.put("excellent", thresholds.get("excellent").intValue());
             levelThresholds.put("good", thresholds.get("good").intValue());
             levelThresholds.put("pass", thresholds.get("pass").intValue());
             
-            weights.put("levelThresholds", levelThresholds);
-            
-            // 3. 保存回数据库
-            String updatedJson = objectMapper.writeValueAsString(weights);
-            updateConfig("profile.weights", updatedJson);
+            String updatedJson = objectMapper.writeValueAsString(levelThresholds);
+            updateConfig("profile.level_thresholds", updatedJson);
             
             log.info("等级阈值更新成功: {}", levelThresholds);
         } catch (Exception e) {

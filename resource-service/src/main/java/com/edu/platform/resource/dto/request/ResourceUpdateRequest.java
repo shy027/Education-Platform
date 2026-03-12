@@ -52,6 +52,7 @@ public class ResourceUpdateRequest {
     /**
      * 标签ID列表
      */
+    @jakarta.validation.constraints.NotEmpty(message = "资源标签不能为空")
     private List<Long> tagIds;
     
     /**

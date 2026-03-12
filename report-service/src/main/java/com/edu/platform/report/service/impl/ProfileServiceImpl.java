@@ -47,10 +47,13 @@ public class ProfileServiceImpl implements ProfileService {
         try {
             log.info("开始计算素养画像: userId={}, courseId={}", userId, courseId);
             
-            // 1. 获取权重配置
-            String weights = configService.getProfileWeights();
-            if (weights == null) {
-                log.error("未找到权重配置,跳过计算");
+            // 1. 获取配置
+            String behaviorWeights = configService.getBehaviorWeights();
+            Map<String, BigDecimal> dimensionWeights = configService.getDimensionWeights();
+            Map<String, BigDecimal> levelThresholds = configService.getLevelThresholds();
+            
+            if (behaviorWeights == null) {
+                log.error("未找到行为权重配置,跳过计算");
                 return;
             }
             
@@ -69,14 +72,14 @@ public class ProfileServiceImpl implements ProfileService {
                 return;
             }
             
-            // 3. 计算五维度得分
-            Map<String, BigDecimal> dimensionScores = profileCalculator.calculateDimensionScores(behaviorLogs, weights);
+            // 3. 计算六维度得分
+            Map<String, BigDecimal> dimensionScores = profileCalculator.calculateDimensionScores(behaviorLogs, behaviorWeights);
             
             // 4. 计算综合得分
-            BigDecimal totalScore = profileCalculator.calculateTotalScore(dimensionScores, weights);
+            BigDecimal totalScore = profileCalculator.calculateTotalScore(dimensionScores, dimensionWeights);
             
             // 5. 评定等级
-            String level = profileCalculator.evaluateLevel(totalScore, weights);
+            String level = profileCalculator.evaluateLevel(totalScore, levelThresholds);
             
             // 6. 查询上次画像,判断成长趋势
             StudentProfile previousProfile = studentProfileMapper.selectOne(
@@ -102,6 +105,7 @@ public class ProfileServiceImpl implements ProfileService {
             profile.setDimension3Score(dimensionScores.get("dimension3"));
             profile.setDimension4Score(dimensionScores.get("dimension4"));
             profile.setDimension5Score(dimensionScores.get("dimension5"));
+            profile.setDimension6Score(dimensionScores.get("dimension6"));
             profile.setTotalScore(totalScore);
             profile.setLevel(level);
             profile.setGrowthTrend(trend);
@@ -175,6 +179,7 @@ public class ProfileServiceImpl implements ProfileService {
         result.put("dimension3Score", profile.getDimension3Score());
         result.put("dimension4Score", profile.getDimension4Score());
         result.put("dimension5Score", profile.getDimension5Score());
+        result.put("dimension6Score", profile.getDimension6Score());
         result.put("totalScore", profile.getTotalScore());
         result.put("profileLevel", profile.getLevel());
         result.put("growthTrend", profile.getGrowthTrend());
@@ -195,6 +200,7 @@ public class ProfileServiceImpl implements ProfileService {
         history.setDimension3Score(dimensionScores.get("dimension3"));
         history.setDimension4Score(dimensionScores.get("dimension4"));
         history.setDimension5Score(dimensionScores.get("dimension5"));
+        history.setDimension6Score(dimensionScores.get("dimension6"));
         history.setTotalScore(totalScore);
         history.setSnapshotDate(LocalDate.now());
         
@@ -224,25 +230,26 @@ public class ProfileServiceImpl implements ProfileService {
                 .eq(StudentProfile::getCourseId, courseId)
         );
         
-        if (profile == null) {
-            return null;
-        }
-        
         RadarDataResponse response = new RadarDataResponse();
         response.setUserId(userId);
         response.setCourseId(courseId);
-        response.setTotalScore(profile.getTotalScore());
-        response.setLevel(profile.getLevel());
-        response.setGrowthTrend(profile.getGrowthTrend());
-        response.setUpdatedTime(profile.getUpdatedTime());
         
-        // 构建五维度数据
+        if (profile != null) {
+            response.setTotalScore(profile.getTotalScore());
+            response.setLevel(profile.getLevel());
+            response.setGrowthTrend(profile.getGrowthTrend());
+            response.setUpdatedTime(profile.getUpdatedTime());
+        }
+        
+        // 构建六维度数据 (即使没有画像数据也返回框架,以便前端展示空雷达图)
+        Map<String, String> dimensionNames = configService.getDimensionNames();
         List<RadarDataResponse.DimensionData> dimensions = new java.util.ArrayList<>();
-        dimensions.add(new RadarDataResponse.DimensionData("价值观认同", profile.getDimension1Score()));
-        dimensions.add(new RadarDataResponse.DimensionData("思想品德", profile.getDimension2Score()));
-        dimensions.add(new RadarDataResponse.DimensionData("社会责任", profile.getDimension3Score()));
-        dimensions.add(new RadarDataResponse.DimensionData("创新精神", profile.getDimension4Score()));
-        dimensions.add(new RadarDataResponse.DimensionData("团队协作", profile.getDimension5Score()));
+        dimensions.add(new RadarDataResponse.DimensionData(dimensionNames.getOrDefault("dimension1", "专业理论"), profile != null ? profile.getDimension1Score() : java.math.BigDecimal.ZERO));
+        dimensions.add(new RadarDataResponse.DimensionData(dimensionNames.getOrDefault("dimension2", "技术技能"), profile != null ? profile.getDimension2Score() : java.math.BigDecimal.ZERO));
+        dimensions.add(new RadarDataResponse.DimensionData(dimensionNames.getOrDefault("dimension3", "职业认同"), profile != null ? profile.getDimension3Score() : java.math.BigDecimal.ZERO));
+        dimensions.add(new RadarDataResponse.DimensionData(dimensionNames.getOrDefault("dimension4", "工艺创新"), profile != null ? profile.getDimension4Score() : java.math.BigDecimal.ZERO));
+        dimensions.add(new RadarDataResponse.DimensionData(dimensionNames.getOrDefault("dimension5", "社会责任"), profile != null ? profile.getDimension5Score() : java.math.BigDecimal.ZERO));
+        dimensions.add(new RadarDataResponse.DimensionData(dimensionNames.getOrDefault("dimension6", "持续发展"), profile != null ? profile.getDimension6Score() : java.math.BigDecimal.ZERO));
         response.setDimensions(dimensions);
         
         return response;
@@ -279,6 +286,7 @@ public class ProfileServiceImpl implements ProfileService {
             point.setDimension3Score(history.getDimension3Score());
             point.setDimension4Score(history.getDimension4Score());
             point.setDimension5Score(history.getDimension5Score());
+            point.setDimension6Score(history.getDimension6Score());
             trackData.add(point);
         }
         response.setTrackData(trackData);

@@ -38,7 +38,6 @@ public class ResourceCreateRequest {
     /**
      * 分类ID
      */
-    @NotNull(message = "分类不能为空")
     private Long categoryId;
     
     /**
@@ -56,6 +55,7 @@ public class ResourceCreateRequest {
     /**
      * 标签ID列表
      */
+    @jakarta.validation.constraints.NotEmpty(message = "资源标签不能为空")
     private List<Long> tagIds;
     
     /**

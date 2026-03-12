@@ -36,6 +36,9 @@ public class ProfileResponse {
     @Schema(description = "维度5得分(反思成长)")
     private BigDecimal dimension5Score;
     
+    @Schema(description = "维度6得分")
+    private BigDecimal dimension6Score;
+    
     @Schema(description = "综合得分")
     private BigDecimal totalScore;
     

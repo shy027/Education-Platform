@@ -30,18 +30,32 @@ public interface ConfigService {
     void updateConfig(String configKey, String configValue);
     
     /**
-     * 获取画像权重配置
-     *
-     * @return 权重配置(JSON字符串)
-     */
-    String getProfileWeights();
-    
-    /**
      * 获取维度权重配置(Map格式)
      *
      * @return 维度权重Map
      */
     Map<String, BigDecimal> getDimensionWeights();
+    
+    /**
+     * 获取维度名称配置(Map格式)
+     *
+     * @return 维度名称Map (dimension1 -> 名称)
+     */
+    Map<String, String> getDimensionNames();
+    
+    /**
+     * 获取行为权重配置(JSON字符串)
+     *
+     * @return 行为权重JSON
+     */
+    String getBehaviorWeights();
+    
+    /**
+     * 获取等级阈值配置(Map格式)
+     *
+     * @return 等级阈值Map (excellent, good, pass)
+     */
+    Map<String, BigDecimal> getLevelThresholds();
     
     /**
      * 更新维度权重配置
