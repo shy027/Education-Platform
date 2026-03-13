@@ -1,5 +1,8 @@
 package com.edu.platform.report.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.edu.platform.report.entity.StudentProfile;
 import com.edu.platform.report.dto.response.GrowthTrackResponse;
 import com.edu.platform.report.dto.response.RadarDataResponse;
 import com.edu.platform.report.dto.response.StatisticsResponse;
@@ -65,5 +68,14 @@ public interface ProfileService {
      * @return 学习统计数据
      */
     StatisticsResponse getStatistics(Long userId, Long courseId, Integer days);
+    
+    /**
+     * 分页查询学生画像列表
+     *
+     * @param page 分页参数
+     * @param courseId 课程ID (若为0则查全局)
+     * @return 分页结果
+     */
+    IPage<StudentProfile> listProfiles(Page<StudentProfile> page, Long courseId);
     
 }

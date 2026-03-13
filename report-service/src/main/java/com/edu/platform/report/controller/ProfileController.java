@@ -1,12 +1,15 @@
 package com.edu.platform.report.controller;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.common.result.Result;
 import com.edu.platform.common.utils.UserContext;
 import com.edu.platform.report.dto.response.GrowthTrackResponse;
 import com.edu.platform.report.dto.response.ProfileResponse;
 import com.edu.platform.report.dto.response.RadarDataResponse;
 import com.edu.platform.report.dto.response.StatisticsResponse;
+import com.edu.platform.report.entity.StudentProfile;
 import com.edu.platform.report.service.ProfileService;
 import com.edu.platform.report.task.ProfileScheduledTask;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +35,21 @@ public class ProfileController {
     
     private final ProfileService profileService;
     private final ProfileScheduledTask profileScheduledTask;
+    
+    /**
+     * 分页获取学生画像列表(管理员/教师)
+     */
+    @GetMapping
+    @Operation(summary = "分页获取学生画像列表", description = "分页查询所有学生的素养画像")
+    public Result<IPage<StudentProfile>> listProfiles(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Long current,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size,
+            @Parameter(description = "课程ID") @RequestParam(required = false) Long courseId) {
+        
+        Page<StudentProfile> page = new Page<>(current, size);
+        IPage<StudentProfile> result = profileService.listProfiles(page, courseId);
+        return Result.success(result);
+    }
     
     /**
      * 获取当前用户的素养画像

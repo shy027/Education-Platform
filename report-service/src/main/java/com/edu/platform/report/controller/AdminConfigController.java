@@ -2,6 +2,8 @@ package com.edu.platform.report.controller;
 
 import com.edu.platform.common.result.Result;
 import com.edu.platform.report.dto.ConfigDTO;
+import com.edu.platform.report.dto.ScoreConfigUpdateRequest;
+import com.edu.platform.report.dto.TagWeightsUpdateRequest;
 import com.edu.platform.report.dto.ThresholdsUpdateRequest;
 import com.edu.platform.report.dto.WeightsUpdateRequest;
 import com.edu.platform.report.service.ConfigService;
@@ -56,11 +58,12 @@ public class AdminConfigController {
         try {
             // 转换为Map
             Map<String, BigDecimal> weights = new HashMap<>();
-            weights.put("dimension_1", request.getDimension_1());
-            weights.put("dimension_2", request.getDimension_2());
-            weights.put("dimension_3", request.getDimension_3());
-            weights.put("dimension_4", request.getDimension_4());
-            weights.put("dimension_5", request.getDimension_5());
+            weights.put("dimension1", request.getDimension1());
+            weights.put("dimension2", request.getDimension2());
+            weights.put("dimension3", request.getDimension3());
+            weights.put("dimension4", request.getDimension4());
+            weights.put("dimension5", request.getDimension5());
+            weights.put("dimension6", request.getDimension6());
             
             // 验证权重总和是否为1
             BigDecimal sum = weights.values().stream()
@@ -130,6 +133,80 @@ public class AdminConfigController {
         } catch (Exception e) {
             log.error("更新阈值配置失败", e);
             return Result.fail("更新阈值配置失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取评分占比及上限配置
+     */
+    @GetMapping("/score-config")
+    @Operation(summary = "获取评分占比及上限配置", description = "获取课程/资源侧分值上限及单次浏览得分")
+    public Result<Map<String, BigDecimal>> getScoreConfig() {
+        try {
+            return Result.success(configService.getScoreConfig());
+        } catch (Exception e) {
+            log.error("获取评分配置失败", e);
+            return Result.fail("获取评分配置失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 更新评分占比及上限配置
+     */
+    @PutMapping("/score-config")
+    @Operation(summary = "更新评分占比及上限配置", description = "更新课程/资源侧分值上限及单次浏览得分")
+    public Result<Void> updateScoreConfig(@RequestBody ScoreConfigUpdateRequest request) {
+        try {
+            Map<String, BigDecimal> config = new HashMap<>();
+            config.put("course_cap", request.getCourseCap());
+            config.put("resource_cap", request.getResourceCap());
+            config.put("resource_view_point", request.getResourceViewPoint());
+            
+            configService.updateScoreConfig(config);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("更新评分配置失败", e);
+            return Result.fail("更新评分配置失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取资源标签权重配置
+     */
+    @GetMapping("/tag-weights")
+    @Operation(summary = "获取资源标签权重", description = "获取资源标签与各维度的分摊权重")
+    public Result<Map<String, Object>> getTagWeights() {
+        try {
+            return Result.success(configService.getResourceTagWeights());
+        } catch (Exception e) {
+            log.error("获取标签权重失败", e);
+            return Result.fail("获取标签权重失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 更新资源标签权重配置
+     */
+    @PutMapping("/tag-weights")
+    @Operation(summary = "更新资源标签权重", description = "批量更新资源标签与各维度的分摊权重")
+    public Result<Void> updateTagWeights(@RequestBody TagWeightsUpdateRequest request) {
+        try {
+            // 将 DTO 转回简单的 Map<String, Object> 存储
+            Map<String, Object> data = new HashMap<>();
+            if (request.getTagConfigs() != null) {
+                for (Map.Entry<String, TagWeightsUpdateRequest.TagConfig> entry : request.getTagConfigs().entrySet()) {
+                    Map<String, Object> innerMap = new HashMap<>();
+                    innerMap.put("max_score", entry.getValue().getMaxScore());
+                    innerMap.put("weights", entry.getValue().getWeights());
+                    data.put(entry.getKey(), innerMap);
+                }
+            }
+            
+            configService.updateResourceTagWeights(data);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("更新标签权重失败", e);
+            return Result.fail("更新标签权重失败: " + e.getMessage());
         }
     }
     

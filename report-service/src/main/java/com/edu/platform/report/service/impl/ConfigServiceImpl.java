@@ -90,12 +90,12 @@ public class ConfigServiceImpl implements ConfigService {
         if (weightsJson == null) {
             // 返回默认权重 (6维)
             Map<String, BigDecimal> defaultWeights = new HashMap<>();
-            defaultWeights.put("dimension_1", new BigDecimal("0.15"));
-            defaultWeights.put("dimension_2", new BigDecimal("0.20"));
-            defaultWeights.put("dimension_3", new BigDecimal("0.15"));
-            defaultWeights.put("dimension_4", new BigDecimal("0.15"));
-            defaultWeights.put("dimension_5", new BigDecimal("0.15"));
-            defaultWeights.put("dimension_6", new BigDecimal("0.20"));
+            defaultWeights.put("dimension1", new BigDecimal("0.15"));
+            defaultWeights.put("dimension2", new BigDecimal("0.20"));
+            defaultWeights.put("dimension3", new BigDecimal("0.15"));
+            defaultWeights.put("dimension4", new BigDecimal("0.15"));
+            defaultWeights.put("dimension5", new BigDecimal("0.15"));
+            defaultWeights.put("dimension6", new BigDecimal("0.20"));
             return defaultWeights;
         }
         
@@ -103,7 +103,11 @@ public class ConfigServiceImpl implements ConfigService {
             Map<String, Object> dimensionWeights = objectMapper.readValue(weightsJson, new TypeReference<Map<String, Object>>() {});
             Map<String, BigDecimal> result = new HashMap<>();
             for (Map.Entry<String, Object> entry : dimensionWeights.entrySet()) {
-                result.put(entry.getKey(), new BigDecimal(entry.getValue().toString()));
+                // 标准化 Key: dimension_1 -> dimension1
+                String key = entry.getKey().replace("_", "");
+                if (entry.getValue() != null) {
+                    result.put(key, new BigDecimal(entry.getValue().toString()));
+                }
             }
             return result;
         } catch (Exception e) {
@@ -135,7 +139,18 @@ public class ConfigServiceImpl implements ConfigService {
 
     @Override
     public String getBehaviorWeights() {
-        return getConfigValue("profile.behavior_weights");
+        String value = getConfigValue("profile.behavior_weights");
+        if (value == null) {
+            // 提供默认行为权重 (JSON)
+            return "{\n" +
+                    "  \"VIEW_COURSEWARE\": {\"dimension1\": 0.4, \"dimension2\": 0.3, \"dimension6\": 0.3},\n" +
+                    "  \"VIEW_CASE\": {\"dimension1\": 0.2, \"dimension2\": 0.4, \"dimension4\": 0.4},\n" +
+                    "  \"WATCH_VIDEO\": {\"dimension1\": 0.5, \"dimension2\": 0.2, \"dimension6\": 0.3},\n" +
+                    "  \"POST_COMMENT\": {\"dimension3\": 0.5, \"dimension5\": 0.5},\n" +
+                    "  \"SUBMIT_HOMEWORK\": {\"dimension2\": 0.4, \"dimension4\": 0.3, \"dimension6\": 0.3}\n" +
+                    "}";
+        }
+        return value;
     }
     
     
@@ -212,7 +227,9 @@ public class ConfigServiceImpl implements ConfigService {
                 Map<String, Object> thresholds = objectMapper.readValue(thresholdJson, new TypeReference<Map<String, Object>>() {});
                 Map<String, BigDecimal> result = new HashMap<>();
                 for (Map.Entry<String, Object> entry : thresholds.entrySet()) {
-                    result.put(entry.getKey(), new BigDecimal(entry.getValue().toString()));
+                    if (entry.getValue() != null) {
+                        result.put(entry.getKey(), new BigDecimal(entry.getValue().toString()));
+                    }
                 }
                 return result;
             }
@@ -246,6 +263,109 @@ public class ConfigServiceImpl implements ConfigService {
         }
     }
     
+    @Override
+    public Map<String, BigDecimal> getScoreConfig() {
+        String configJson = getConfigValue("profile.score_config");
+        if (configJson == null) {
+            Map<String, BigDecimal> defaults = new HashMap<>();
+            defaults.put("course_cap", new BigDecimal("80.0"));
+            defaults.put("resource_cap", new BigDecimal("20.0"));
+            defaults.put("resource_view_point", new BigDecimal("2.0"));
+            return defaults;
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(configJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, BigDecimal> result = new HashMap<>();
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                // 标准化 Key (camelCase -> snake_case) 兼容
+                String key = entry.getKey();
+                if ("courseCap".equals(key)) key = "course_cap";
+                if ("resourceCap".equals(key)) key = "resource_cap";
+                if ("resourceViewPoint".equals(key)) key = "resource_view_point";
+                
+                // 允许 null 值放进去，让前台去判断和提示
+                Object val = entry.getValue();
+                if (val != null) {
+                    result.put(key, new BigDecimal(val.toString()));
+                } else {
+                    result.put(key, null);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to parse profile.score_config", e);
+            return new HashMap<>();
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateScoreConfig(Map<String, BigDecimal> config) {
+        try {
+            String json = objectMapper.writeValueAsString(config);
+            updateConfig("profile.score_config", json);
+        } catch (Exception e) {
+            log.error("Failed to update profile.score_config", e);
+            throw new RuntimeException("更新得分配置失败: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Map<String, Object> getResourceTagWeights() {
+        String configJson = getConfigValue("profile.resource_tag_weights");
+        if (configJson == null) {
+            // 用户要求：不要内置默认值，返回空 Map 触发前台提示
+            return new HashMap<>();
+        }
+        try {
+            Map<String, Object> raw = objectMapper.readValue(configJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> normalized = new HashMap<>();
+            
+            for (Map.Entry<String, Object> entry : raw.entrySet()) {
+                String tagName = entry.getKey();
+                if (entry.getValue() instanceof Map) {
+                    Map<String, Object> config = new HashMap<>((Map<String, Object>) entry.getValue());
+                    
+                    // 标准化 max_score
+                    if (config.containsKey("maxScore")) {
+                        config.put("max_score", config.remove("maxScore"));
+                    }
+                    // 标准化 weights
+                    if (config.containsKey("weights") && config.get("weights") instanceof Map) {
+                        Map<String, Object> weights = (Map<String, Object>) config.get("weights");
+                        Map<String, Object> normalizedWeights = new HashMap<>();
+                        for (Map.Entry<String, Object> wEntry : weights.entrySet()) {
+                            // 保持原始值，哪怕是 null
+                            normalizedWeights.put(wEntry.getKey().replace("_", ""), wEntry.getValue());
+                        }
+                        config.put("weights", normalizedWeights);
+                    }
+                    
+                    // 注意：这里不再设置 max_score 的默认值 10.0
+                    
+                    normalized.put(tagName, config);
+                }
+            }
+            return normalized;
+        } catch (Exception e) {
+            log.error("Failed to parse profile.resource_tag_weights", e);
+            return new HashMap<>();
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateResourceTagWeights(Map<String, Object> tagWeights) {
+        try {
+            String json = objectMapper.writeValueAsString(tagWeights);
+            updateConfig("profile.resource_tag_weights", json);
+        } catch (Exception e) {
+            log.error("Failed to update profile.resource_tag_weights", e);
+            throw new RuntimeException("更新标签权重失败: " + e.getMessage());
+        }
+    }
+
     @Override
     public List<ConfigDTO> getAllConfigs() {
         String sql = "SELECT config_key, config_value, config_type, description FROM sys_config ORDER BY config_type, config_key";

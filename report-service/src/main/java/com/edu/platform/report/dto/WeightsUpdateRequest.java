@@ -14,18 +14,21 @@ import java.math.BigDecimal;
 @Schema(description = "权重更新请求")
 public class WeightsUpdateRequest {
     
-    @Schema(description = "维度1权重(政治认同)", example = "0.25")
-    private BigDecimal dimension_1;
+    @Schema(description = "维度1权重", example = "0.15")
+    private BigDecimal dimension1;
     
-    @Schema(description = "维度2权重(家国情怀)", example = "0.25")
-    private BigDecimal dimension_2;
+    @Schema(description = "维度2权重", example = "0.20")
+    private BigDecimal dimension2;
     
-    @Schema(description = "维度3权重(道德修养)", example = "0.20")
-    private BigDecimal dimension_3;
+    @Schema(description = "维度3权重", example = "0.15")
+    private BigDecimal dimension3;
     
-    @Schema(description = "维度4权重(法治意识)", example = "0.15")
-    private BigDecimal dimension_4;
+    @Schema(description = "维度4权重", example = "0.15")
+    private BigDecimal dimension4;
     
-    @Schema(description = "维度5权重(文化素养)", example = "0.15")
-    private BigDecimal dimension_5;
+    @Schema(description = "维度5权重", example = "0.15")
+    private BigDecimal dimension5;
+    
+    @Schema(description = "维度6权重", example = "0.20")
+    private BigDecimal dimension6;
 }

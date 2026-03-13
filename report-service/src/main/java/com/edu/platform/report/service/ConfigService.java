@@ -100,6 +100,34 @@ public interface ConfigService {
     List<ConfigDTO> getAllConfigs();
     
     /**
+     * 获取评分构成配置(课程/资源上限, 浏览基础分)
+     *
+     * @return 评分配置Map
+     */
+    Map<String, BigDecimal> getScoreConfig();
+    
+    /**
+     * 更新评分构成配置
+     *
+     * @param config 评分配置Map
+     */
+    void updateScoreConfig(Map<String, BigDecimal> config);
+
+    /**
+     * 获取资源标签权重与封顶配置(JSON结构)
+     *
+     * @return 标签权重Map
+     */
+    Map<String, Object> getResourceTagWeights();
+
+    /**
+     * 更新资源标签权重与封顶配置
+     *
+     * @param tagWeights 标签权重Map
+     */
+    void updateResourceTagWeights(Map<String, Object> tagWeights);
+
+    /**
      * 刷新配置缓存
      *
      * @param configKey 配置键

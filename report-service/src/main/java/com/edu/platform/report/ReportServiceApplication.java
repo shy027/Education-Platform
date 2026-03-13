@@ -15,6 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @ComponentScan(basePackages = {"com.edu.platform.report", "com.edu.platform.common"})
 @EnableAsync
 @EnableScheduling
+@org.springframework.cloud.openfeign.EnableFeignClients
 public class ReportServiceApplication {
     
     public static void main(String[] args) {

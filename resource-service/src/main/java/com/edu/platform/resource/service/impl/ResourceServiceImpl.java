@@ -574,10 +574,13 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public List<Resource> listByIds(List<Long> resourceIds) {
-        if (resourceIds == null || resourceIds.isEmpty()) {
+    public List<ResourceResponse> listResponsesByIds(List<Long> resourceIds) {
+        if (cn.hutool.core.collection.CollUtil.isEmpty(resourceIds)) {
             return new ArrayList<>();
         }
-        return resourceMapper.selectBatchIds(resourceIds);
+        List<Resource> resources = resourceMapper.selectBatchIds(resourceIds);
+        return resources.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 }

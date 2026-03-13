@@ -127,10 +127,10 @@ public interface ResourceService {
     void updateAuditStatus(Long resourceId, Integer auditStatus, Long auditorId, String auditRemark);
 
     /**
-     * 根据 ID 批量获取资源
+     * 根据 ID 批量获取资源响应(包含标签)
      *
      * @param resourceIds 资源ID集合
-     * @return 资源集合
+     * @return 资源响应集合
      */
-    List<com.edu.platform.resource.entity.Resource> listByIds(List<Long> resourceIds);
+    List<ResourceResponse> listResponsesByIds(List<Long> resourceIds);
 }

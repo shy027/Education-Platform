@@ -1,6 +1,8 @@
 package com.edu.platform.report.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.report.calculator.ProfileCalculator;
 import com.edu.platform.report.dto.response.GrowthTrackResponse;
 import com.edu.platform.report.dto.response.RadarDataResponse;
@@ -13,6 +15,8 @@ import com.edu.platform.report.mapper.ProfileHistoryMapper;
 import com.edu.platform.report.mapper.StudentProfileMapper;
 import com.edu.platform.report.service.ConfigService;
 import com.edu.platform.report.service.ProfileService;
+import com.edu.platform.report.client.ResourceClient;
+import com.edu.platform.report.dto.ResourceResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +44,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final ProfileHistoryMapper profileHistoryMapper;
     private final ProfileCalculator profileCalculator;
     private final ConfigService configService;
+    private final ResourceClient resourceClient;
     
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -60,9 +65,12 @@ public class ProfileServiceImpl implements ProfileService {
             // 2. 查询用户的学习行为记录(最近30天)
             LocalDateTime startTime = LocalDateTime.now().minusDays(30);
             LambdaQueryWrapper<BehaviorLog> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(BehaviorLog::getUserId, userId)
-                   .eq(BehaviorLog::getCourseId, courseId)
-                   .ge(BehaviorLog::getCreatedTime, startTime)
+            wrapper.eq(BehaviorLog::getUserId, userId);
+            // 如果 courseId 不为 0，则按课程过滤；若为 0，则查全平台行为（包含 course_id=0 的资源浏览和各课程行为）
+            if (courseId != null && courseId != 0) {
+                wrapper.eq(BehaviorLog::getCourseId, courseId);
+            }
+            wrapper.ge(BehaviorLog::getCreatedTime, startTime)
                    .orderByDesc(BehaviorLog::getCreatedTime);
             
             List<BehaviorLog> behaviorLogs = behaviorLogMapper.selectList(wrapper);
@@ -73,7 +81,36 @@ public class ProfileServiceImpl implements ProfileService {
             }
             
             // 3. 计算六维度得分
-            Map<String, BigDecimal> dimensionScores = profileCalculator.calculateDimensionScores(behaviorLogs, behaviorWeights);
+            // 3.1 获取双通道配置
+            Map<String, BigDecimal> scoreConfig = configService.getScoreConfig();
+            Map<String, Object> tagWeights = configService.getResourceTagWeights();
+            
+            // 3.2 收集待查询标签的资源ID
+            List<Long> resourceIds = behaviorLogs.stream()
+                    .filter(log -> "RESOURCE_VIEW".equals(log.getBehaviorType()))
+                    .map(BehaviorLog::getBehaviorObjectId)
+                    .distinct()
+                    .collect(java.util.stream.Collectors.toList());
+            
+            // 3.3 批量获取资源标签映射
+            Map<Long, List<String>> resourceTagsMap = new HashMap<>();
+            if (!resourceIds.isEmpty()) {
+                com.edu.platform.common.result.Result<List<ResourceResponse>> result = resourceClient.getResourcesByIds(resourceIds);
+                if (result.getCode() == 200 && result.getData() != null) {
+                    for (ResourceResponse res : result.getData()) {
+                        if (res.getTags() != null) {
+                            List<String> tags = res.getTags().stream()
+                                    .map(ResourceResponse.TagInfo::getTagName)
+                                    .collect(java.util.stream.Collectors.toList());
+                            resourceTagsMap.put(res.getId(), tags);
+                        }
+                    }
+                }
+            }
+
+            // 3.4 调用综合计算器
+            Map<String, BigDecimal> dimensionScores = profileCalculator.calculateDimensionScores(
+                    behaviorLogs, resourceTagsMap, behaviorWeights, scoreConfig, tagWeights);
             
             // 4. 计算综合得分
             BigDecimal totalScore = profileCalculator.calculateTotalScore(dimensionScores, dimensionWeights);
@@ -130,13 +167,15 @@ public class ProfileServiceImpl implements ProfileService {
     
     @Override
     public void calculateAllProfiles(Long courseId) {
-        // 查询该课程下所有有行为记录的用户
-        List<Long> userIds = behaviorLogMapper.selectObjs(
-            new LambdaQueryWrapper<BehaviorLog>()
-                .select(BehaviorLog::getUserId)
-                .eq(BehaviorLog::getCourseId, courseId)
-                .groupBy(BehaviorLog::getUserId)
-        );
+        // 查询有行为记录的用户
+        LambdaQueryWrapper<BehaviorLog> wrapper = new LambdaQueryWrapper<BehaviorLog>()
+                .select(BehaviorLog::getUserId);
+        if (courseId != null && courseId != 0) {
+            wrapper.eq(BehaviorLog::getCourseId, courseId);
+        }
+        wrapper.groupBy(BehaviorLog::getUserId);
+        
+        List<Long> userIds = behaviorLogMapper.selectObjs(wrapper);
         
         log.info("开始批量计算素养画像: courseId={}, userCount={}", courseId, userIds.size());
         
@@ -263,13 +302,13 @@ public class ProfileServiceImpl implements ProfileService {
         
         // 查询历史快照
         LocalDate startDate = LocalDate.now().minusDays(days - 1);
-        List<ProfileHistory> historyList = profileHistoryMapper.selectList(
-            new LambdaQueryWrapper<ProfileHistory>()
-                .eq(ProfileHistory::getUserId, userId)
-                .eq(ProfileHistory::getCourseId, courseId)
-                .ge(ProfileHistory::getSnapshotDate, startDate)
-                .orderByAsc(ProfileHistory::getSnapshotDate)
-        );
+        LambdaQueryWrapper<ProfileHistory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ProfileHistory::getUserId, userId)
+               .eq(ProfileHistory::getCourseId, courseId)
+               .ge(ProfileHistory::getSnapshotDate, startDate)
+               .orderByAsc(ProfileHistory::getSnapshotDate);
+        
+        List<ProfileHistory> historyList = profileHistoryMapper.selectList(wrapper);
         
         GrowthTrackResponse response = new GrowthTrackResponse();
         response.setUserId(userId);
@@ -314,6 +353,16 @@ public class ProfileServiceImpl implements ProfileService {
     }
     
     @Override
+    public IPage<StudentProfile> listProfiles(Page<StudentProfile> page, Long courseId) {
+        LambdaQueryWrapper<StudentProfile> wrapper = new LambdaQueryWrapper<>();
+        if (courseId != null && courseId != 0) {
+            wrapper.eq(StudentProfile::getCourseId, courseId);
+        }
+        wrapper.orderByDesc(StudentProfile::getTotalScore);
+        return studentProfileMapper.selectPage(page, wrapper);
+    }
+    
+    @Override
     public StatisticsResponse getStatistics(Long userId, Long courseId, Integer days) {
         if (days == null || days <= 0) {
             days = 30;
@@ -321,13 +370,15 @@ public class ProfileServiceImpl implements ProfileService {
         
         // 查询行为记录
         LocalDateTime startTime = LocalDateTime.now().minusDays(days);
-        List<BehaviorLog> behaviorLogs = behaviorLogMapper.selectList(
-            new LambdaQueryWrapper<BehaviorLog>()
-                .eq(BehaviorLog::getUserId, userId)
-                .eq(BehaviorLog::getCourseId, courseId)
-                .ge(BehaviorLog::getCreatedTime, startTime)
-                .orderByDesc(BehaviorLog::getCreatedTime)
-        );
+        LambdaQueryWrapper<BehaviorLog> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BehaviorLog::getUserId, userId);
+        if (courseId != null && courseId != 0) {
+            wrapper.eq(BehaviorLog::getCourseId, courseId);
+        }
+        wrapper.ge(BehaviorLog::getCreatedTime, startTime)
+               .orderByDesc(BehaviorLog::getCreatedTime);
+        
+        List<BehaviorLog> behaviorLogs = behaviorLogMapper.selectList(wrapper);
         
         StatisticsResponse response = new StatisticsResponse();
         response.setUserId(userId);

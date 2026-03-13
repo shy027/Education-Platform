@@ -15,5 +15,13 @@ public interface BehaviorService {
      * @param request 行为埋点请求
      */
     void logBehavior(BehaviorLogRequest request);
+
+    /**
+     * 异步触发画像计算
+     *
+     * @param userId 用户ID
+     * @param courseId 课程ID
+     */
+    void triggerCalculate(Long userId, Long courseId);
     
 }

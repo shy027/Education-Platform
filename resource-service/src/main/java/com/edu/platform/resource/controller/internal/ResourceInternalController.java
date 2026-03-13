@@ -45,16 +45,7 @@ public class ResourceInternalController {
             return Result.success(new java.util.ArrayList<>());
         }
         
-        java.util.List<com.edu.platform.resource.entity.Resource> resources = resourceService.listByIds(resourceIds);
-        java.util.List<com.edu.platform.resource.dto.response.ResourceResponse> responseList = resources.stream()
-                .map(res -> {
-                    com.edu.platform.resource.dto.response.ResourceResponse resp = new com.edu.platform.resource.dto.response.ResourceResponse();
-                    cn.hutool.core.bean.BeanUtil.copyProperties(res, resp);
-                    return resp;
-                })
-                .collect(java.util.stream.Collectors.toList());
-                
-        return Result.success(responseList);
+        return Result.success(resourceService.listResponsesByIds(resourceIds));
     }
 
     @Data

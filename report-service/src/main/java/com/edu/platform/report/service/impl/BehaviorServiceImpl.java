@@ -6,9 +6,12 @@ import com.edu.platform.report.dto.request.BehaviorLogRequest;
 import com.edu.platform.report.entity.BehaviorLog;
 import com.edu.platform.report.mapper.BehaviorLogMapper;
 import com.edu.platform.report.service.BehaviorService;
+import com.edu.platform.report.service.ProfileService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,16 +26,31 @@ public class BehaviorServiceImpl implements BehaviorService {
     
     private final BehaviorLogMapper behaviorLogMapper;
     private final HttpServletRequest request;
+    private final @Lazy ProfileService profileService;
+    
+    @jakarta.annotation.Resource
+    private @Lazy BehaviorService self;
     
     @Override
     public void logBehavior(BehaviorLogRequest behaviorRequest) {
+        log.info("收到行为埋点原始请求: {}", behaviorRequest);
         try {
+            Long userId = UserContext.getUserId();
+            log.info("收到的行为埋点原始请求: userId={}, request={}", userId, behaviorRequest);
+            
             // 创建行为日志实体
             BehaviorLog behaviorLog = new BehaviorLog();
             BeanUtil.copyProperties(behaviorRequest, behaviorLog);
             
+            // 补充字段 (以防复制失败)
+            if (behaviorLog.getBehaviorObjectId() == null) {
+                behaviorLog.setBehaviorObjectId(behaviorRequest.getBehaviorObjectId());
+            }
+
+            log.info("转换后的实体对象: behaviorObjectId={}, behaviorType={}", 
+                    behaviorLog.getBehaviorObjectId(), behaviorLog.getBehaviorType());
+            
             // 设置用户ID(从UserContext获取,由UserInterceptor自动设置)
-            Long userId = UserContext.getUserId();
             if (userId == null) {
                 // 未登录用户,跳过埋点记录(不影响主业务)
                 log.debug("用户未登录,跳过行为埋点记录");
@@ -50,9 +68,30 @@ public class BehaviorServiceImpl implements BehaviorService {
             
             log.info("行为埋点记录成功: userId={}, behaviorType={}, courseId={}", 
                     userId, behaviorRequest.getBehaviorType(), behaviorRequest.getCourseId());
+            
+            // 实时触发画像计算 (通过代理调用确保 @Async 生效)
+            self.triggerCalculate(userId, behaviorRequest.getCourseId());
+            
         } catch (Exception e) {
             // 行为埋点失败不影响主业务流程,只记录日志
             log.error("行为埋点记录失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 异步触发画像计算
+     */
+    @Async
+    public void triggerCalculate(Long userId, Long courseId) {
+        try {
+            // 1. 计算当前课程画像
+            if (courseId != null && courseId != 0) {
+                profileService.calculateProfile(userId, courseId);
+            }
+            // 2. 始终触发全局画像计算 (courseId=0)
+            profileService.calculateProfile(userId, 0L);
+        } catch (Exception e) {
+            log.error("异步触发画像计算失败: userId={}", userId, e);
         }
     }
     
