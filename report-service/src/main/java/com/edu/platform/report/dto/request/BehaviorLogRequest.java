@@ -20,6 +20,10 @@ public class BehaviorLogRequest implements Serializable {
     
     @Schema(description = "课程ID", example = "1001")
     private Long courseId;
+
+    @Schema(description = "用户ID")
+    @JsonProperty("userId")
+    private Long userId;
     
     @JsonProperty("behaviorType")
     @Schema(description = "行为类型", example = "VIEW_COURSEWARE", required = true)

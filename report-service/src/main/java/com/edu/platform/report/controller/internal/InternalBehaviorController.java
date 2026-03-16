@@ -29,7 +29,18 @@ public class InternalBehaviorController {
     public Result<Void> logBehavior(@RequestBody BehaviorLogDTO dto) {
         BehaviorLogRequest request = new BehaviorLogRequest();
         BeanUtil.copyProperties(dto, request);
+        // 显式传递 userId，确保跨服务上报的分归属正确
+        request.setUserId(dto.getUserId());
         behaviorService.logBehavior(request);
+        return Result.success();
+    }
+
+    @Operation(summary = "删除行为日志(内部调用)")
+    @org.springframework.web.bind.annotation.DeleteMapping("/log")
+    public Result<Void> deleteBehavior(
+            @org.springframework.web.bind.annotation.RequestParam String type,
+            @org.springframework.web.bind.annotation.RequestParam Long objectId) {
+        behaviorService.deleteBehavior(type, objectId);
         return Result.success();
     }
 }

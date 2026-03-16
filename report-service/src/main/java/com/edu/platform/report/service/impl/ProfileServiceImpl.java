@@ -62,8 +62,8 @@ public class ProfileServiceImpl implements ProfileService {
                 return;
             }
             
-            // 2. 查询用户的学习行为记录(最近30天)
-            LocalDateTime startTime = LocalDateTime.now().minusDays(30);
+            // 2. 查询用户的学习行为记录 (扩展至 365 天，确保画像连续性)
+            LocalDateTime startTime = LocalDateTime.now().minusDays(365);
             LambdaQueryWrapper<BehaviorLog> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(BehaviorLog::getUserId, userId);
             // 如果 courseId 不为 0，则按课程过滤；若为 0，则查全平台行为（包含 course_id=0 的资源浏览和各课程行为）
@@ -85,9 +85,12 @@ public class ProfileServiceImpl implements ProfileService {
             Map<String, BigDecimal> scoreConfig = configService.getScoreConfig();
             Map<String, Object> tagWeights = configService.getResourceTagWeights();
             
-            // 3.2 收集待查询标签的资源ID
+            // 3.2 收集待查询标签的资源ID (兼容多种浏览行为类型)
             List<Long> resourceIds = behaviorLogs.stream()
-                    .filter(log -> "RESOURCE_VIEW".equals(log.getBehaviorType()))
+                    .filter(log -> {
+                        String type = log.getBehaviorType();
+                        return "RESOURCE_VIEW".equals(type) || "WATCH_VIDEO".equals(type) || "READ_DOC".equals(type);
+                    })
                     .map(BehaviorLog::getBehaviorObjectId)
                     .distinct()
                     .collect(java.util.stream.Collectors.toList());
@@ -109,8 +112,11 @@ public class ProfileServiceImpl implements ProfileService {
             }
 
             // 3.4 调用综合计算器
+            log.info("用户行为记录数: {}, 准备计算画像...", behaviorLogs.size());
             Map<String, BigDecimal> dimensionScores = profileCalculator.calculateDimensionScores(
                     behaviorLogs, resourceTagsMap, behaviorWeights, scoreConfig, tagWeights);
+            
+            log.info("画像计算完成, 原始维度分: {}", dimensionScores);
             
             // 4. 计算综合得分
             BigDecimal totalScore = profileCalculator.calculateTotalScore(dimensionScores, dimensionWeights);

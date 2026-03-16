@@ -35,8 +35,12 @@ public class BehaviorServiceImpl implements BehaviorService {
     public void logBehavior(BehaviorLogRequest behaviorRequest) {
         log.info("收到行为埋点原始请求: {}", behaviorRequest);
         try {
-            Long userId = UserContext.getUserId();
-            log.info("收到的行为埋点原始请求: userId={}, request={}", userId, behaviorRequest);
+            // 优先使用请求中指定的 userId (用于跨服务代发，如教师加精)
+            Long userId = behaviorRequest.getUserId();
+            if (userId == null) {
+                userId = UserContext.getUserId();
+            }
+            log.info("收到的行为埋点处理: targetUserId={}, request={}", userId, behaviorRequest);
             
             // 创建行为日志实体
             BehaviorLog behaviorLog = new BehaviorLog();
@@ -50,10 +54,10 @@ public class BehaviorServiceImpl implements BehaviorService {
             log.info("转换后的实体对象: behaviorObjectId={}, behaviorType={}", 
                     behaviorLog.getBehaviorObjectId(), behaviorLog.getBehaviorType());
             
-            // 设置用户ID(从UserContext获取,由UserInterceptor自动设置)
+            // 设置用户ID
             if (userId == null) {
-                // 未登录用户,跳过埋点记录(不影响主业务)
-                log.debug("用户未登录,跳过行为埋点记录");
+                // 如果依然获取不到用户ID，说明是匿名操作或校验失败
+                log.debug("无法获取用户ID,跳过行为埋点记录");
                 return;
             }
             
@@ -95,6 +99,42 @@ public class BehaviorServiceImpl implements BehaviorService {
         }
     }
     
+    @Override
+    public void deleteBehavior(String type, Long objectId) {
+        log.info("开始删除行为记录: type={}, objectId={}", type, objectId);
+        try {
+            // 查找受影响的用户和课程，用于后续重计
+            java.util.List<BehaviorLog> logs = behaviorLogMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BehaviorLog>()
+                    .eq(BehaviorLog::getBehaviorType, type)
+                    .eq(BehaviorLog::getBehaviorObjectId, objectId)
+            );
+
+            if (logs.isEmpty()) {
+                log.info("未找到匹配的行为记录, type={}, objectId={}", type, objectId);
+                return;
+            }
+
+            // 删除记录
+            behaviorLogMapper.delete(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BehaviorLog>()
+                    .eq(BehaviorLog::getBehaviorType, type)
+                    .eq(BehaviorLog::getBehaviorObjectId, objectId)
+            );
+
+            log.info("已删除 {} 条行为记录", logs.size());
+
+            // 针对每个受影响的用户触发画像更新
+            for (BehaviorLog logEntry : logs) {
+                if (logEntry.getUserId() != null) {
+                    self.triggerCalculate(logEntry.getUserId(), logEntry.getCourseId());
+                }
+            }
+        } catch (Exception e) {
+            log.error("删除行为记录失败: {}", e.getMessage(), e);
+        }
+    }
+
     /**
      * 获取客户端IP地址
      */

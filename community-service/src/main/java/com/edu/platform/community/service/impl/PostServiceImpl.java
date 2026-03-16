@@ -9,6 +9,7 @@ import com.edu.platform.community.dto.request.PostQueryRequest;
 import com.edu.platform.community.dto.request.UpdatePostRequest;
 import com.edu.platform.community.dto.response.PostDetailResponse;
 import com.edu.platform.community.entity.CommunityPost;
+import com.edu.platform.community.entity.CommunityComment;
 import com.edu.platform.community.mapper.CommunityPostMapper;
 import com.edu.platform.community.client.UserServiceClient;
 import com.edu.platform.community.dto.response.UserInfoDTO;
@@ -16,13 +17,13 @@ import com.edu.platform.community.service.PostService;
 import com.edu.platform.community.util.PermissionUtil;
 import com.edu.platform.common.result.Result;
 import com.edu.platform.community.mq.AuditRequestSender;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,23 +42,27 @@ public class PostServiceImpl implements PostService {
     
     private final CommunityPostMapper postMapper;
     private final PermissionUtil permissionUtil;
+    private final com.edu.platform.community.mapper.CommunityPostLikeMapper postLikeMapper;
+    private final UserServiceClient userServiceClient;
+    private final AuditRequestSender auditRequestSender;
+    private final com.edu.platform.community.client.BehaviorClient behaviorClient;
+    private final com.edu.platform.community.mapper.CommunityCommentMapper commentMapper;
     
     @Autowired
-    private com.edu.platform.community.mapper.CommunityPostLikeMapper postLikeMapper;
-    
-    @Autowired(required = false)
-    private UserServiceClient userServiceClient;
-    
-    @Autowired(required = false)
-    private AuditRequestSender auditRequestSender;
-
-    @Autowired(required = false)
-    private com.edu.platform.community.client.BehaviorClient behaviorClient;
-    
-    @Autowired
-    public PostServiceImpl(CommunityPostMapper postMapper, PermissionUtil permissionUtil) {
+    public PostServiceImpl(CommunityPostMapper postMapper, 
+                           PermissionUtil permissionUtil,
+                           com.edu.platform.community.mapper.CommunityPostLikeMapper postLikeMapper,
+                           @Autowired(required = false) UserServiceClient userServiceClient,
+                           @Autowired(required = false) AuditRequestSender auditRequestSender,
+                           @Autowired(required = false) com.edu.platform.community.client.BehaviorClient behaviorClient,
+                           com.edu.platform.community.mapper.CommunityCommentMapper commentMapper) {
         this.postMapper = postMapper;
         this.permissionUtil = permissionUtil;
+        this.postLikeMapper = postLikeMapper;
+        this.userServiceClient = userServiceClient;
+        this.auditRequestSender = auditRequestSender;
+        this.behaviorClient = behaviorClient;
+        this.commentMapper = commentMapper;
     }
     
     @Override
@@ -356,20 +361,110 @@ public class PostServiceImpl implements PostService {
         
         log.info("话题精华状态更新成功, postId={}, isEssence={}", postId, isEssence);
 
-        // 如果设置为精华，上报额外行为
-        if (isEssence == 1 && behaviorClient != null) {
+        // 如果设置为精华，为帖主及所有参与评论的学生加分
+        if (behaviorClient != null) {
             try {
-                behaviorClient.logBehavior(com.edu.platform.common.dto.BehaviorLogDTO.builder()
-                        .userId(post.getUserId()) // 加分给作者
-                        .courseId(post.getCourseId())
-                        .behaviorType("ESSENCE_POST")
-                        .behaviorObjectId(post.getId())
-                        .behaviorData(cn.hutool.json.JSONUtil.createObj()
-                                .set("title", post.getPostTitle())
-                                .toString())
-                        .build());
+                if (isEssence == 1) {
+                    // 1. 收集所有相关用户ID (帖主 + 评论者)
+                    java.util.Set<Long> userIds = new java.util.HashSet<>();
+                    if (post.getUserId() != null) {
+                        userIds.add(post.getUserId());
+                    } else {
+                        log.warn("话题加精排查 - 帖子作者ID为空: postId={}", post.getId());
+                    }
+                    
+                    // 2. 查询所有在该话题下留言的用户 (使用 String 避免 Lambda 潜在问题)
+                    com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<CommunityComment> wrapper = 
+                        new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<>();
+                    wrapper.eq("post_id", post.getId());
+                    
+                    java.util.List<CommunityComment> comments = commentMapper.selectList(wrapper);
+                    
+                    log.info("话题加精排查 - 数据库查询结果: postId={}, 原始评论数: {}", post.getId(), comments != null ? comments.size() : 0);
+                    if (comments != null) {
+                        for (CommunityComment comment : comments) {
+                            if (comment.getUserId() != null) {
+                                userIds.add(comment.getUserId());
+                                log.info("话题加精排查 - 发现留言者: userId={}, status={}, auditStatus={}", 
+                                    comment.getUserId(), comment.getStatus(), comment.getAuditStatus());
+                            }
+                        }
+                    }
+
+                    // 3. 过滤出学生账号 (批量查询角色信息)
+                    java.util.Set<Long> studentIds = new java.util.HashSet<>();
+                    log.info("话题加精排查 - 进入合规性检查, 涉及唯一用户数: {}, IDs: {}", userIds.size(), userIds);
+                    
+                    if (!userIds.isEmpty()) {
+                        if (userServiceClient != null) {
+                            try {
+                                com.edu.platform.common.result.Result<java.util.Map<Long, com.edu.platform.community.dto.response.UserInfoDTO>> userResult = 
+                                    userServiceClient.batchGetUserInfo(new java.util.ArrayList<>(userIds));
+                                
+                                if (userResult != null && userResult.getData() != null) {
+                                    java.util.Map<Long, com.edu.platform.community.dto.response.UserInfoDTO> userMap = userResult.getData();
+                                    log.info("话题加精排查 - 用户中心返回条数: {}", userMap.size());
+                                    
+                                    for (Long uid : userIds) {
+                                        com.edu.platform.community.dto.response.UserInfoDTO userInfo = userMap.get(uid);
+                                        if (userInfo != null) {
+                                            List<com.edu.platform.community.dto.response.UserInfoDTO.RoleInfo> roles = userInfo.getRoles();
+                                            log.info("话题加精排查 - 校验用户角色列表: userId={}, name={}, 角色数={}", 
+                                                uid, userInfo.getRealName(), roles != null ? roles.size() : 0);
+                                            
+                                            boolean isStudent = false;
+                                            if (roles != null) {
+                                                for (com.edu.platform.community.dto.response.UserInfoDTO.RoleInfo role : roles) {
+                                                    String rn = role.getRoleName() != null ? role.getRoleName() : "";
+                                                    String rc = role.getRoleCode() != null ? role.getRoleCode() : "";
+                                                    log.info("话题加精排查 - 检查具体角色: userId={}, roleName={}, roleCode={}", uid, rn, rc);
+                                                    
+                                                    if (rn.contains("学生") || rc.toUpperCase().contains("STUDENT")) {
+                                                        isStudent = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            if (isStudent) {
+                                                studentIds.add(uid);
+                                            }
+                                        } else {
+                                            log.warn("话题加精排查 - 无法获取用户信息: userId={}", uid);
+                                        }
+                                    }
+                                } else {
+                                    log.error("话题加精排查 - 用户服务返回 Data 为空");
+                                }
+                            } catch (Exception e) {
+                                log.error("话题加精排查 - 调用用户服务异常", e);
+                                studentIds = userIds; // 降级策略
+                            }
+                        } else {
+                            log.error("话题加精排查 - userServiceClient 未注入，无法检查学生身份！");
+                        }
+                    }
+
+                    // 4. 批量上报行为权重
+                    log.info("话题加精画像同步: postId={}, 合资格学生总数={}", post.getId(), studentIds.size());
+                    for (Long targetUserId : studentIds) {
+                        behaviorClient.logBehavior(com.edu.platform.common.dto.BehaviorLogDTO.builder()
+                                .userId(targetUserId)
+                                .courseId(post.getCourseId())
+                                .behaviorType("ESSENCE_POST")
+                                .behaviorObjectId(post.getId())
+                                .behaviorData(cn.hutool.json.JSONUtil.createObj()
+                                        .set("title", post.getPostTitle())
+                                        .toString())
+                                .build());
+                    }
+                } else {
+                    // 取消精华，同步删除画像系统中的加分埋点记录 (该接口会根据 type 和 objectId 批量删除，涵盖所有涉及用户)
+                    log.info("话题取消精华画像同步: postId={}", post.getId());
+                    behaviorClient.deleteBehavior("ESSENCE_POST", post.getId());
+                }
             } catch (Exception e) {
-                log.error("上报精华帖行为失败", e);
+                log.error("操作精华帖画像日志失败, isEssence={}", isEssence, e);
             }
         }
     }

@@ -63,13 +63,17 @@ public class ProfileCalculator {
         // 2. 遍历行为日志
         // 去重处理资源浏览：同一资源只计分一次
         java.util.Set<Long> viewedResourceIds = new java.util.HashSet<>();
+        java.util.Set<Long> viewedCoursewareIds = new java.util.HashSet<>();
+        java.util.Set<Long> viewedTopicIds = new java.util.HashSet<>();
+        java.util.Map<Long, BigDecimal> taskMaxPoints = new java.util.HashMap<>();
+        java.util.Map<Long, CourseScoringDTO> taskConfigs = new java.util.HashMap<>();
 
         for (BehaviorLog logEntry : behaviorLogs) {
             String type = logEntry.getBehaviorType();
             Long courseId = logEntry.getCourseId();
 
-            // A. 处理资源浏览记录 (类型为浏览)
-            if ("WATCH_VIDEO".equals(type) || "READ_DOC".equals(type)) {
+            // A. 处理资源浏览记录 (仅限全局资源库浏览，其 courseId 通常为 0 或空)
+            if (isViewBehavior(type) && (courseId == null || courseId == 0)) {
                 Long resId = logEntry.getBehaviorObjectId();
                 if (resId != null && viewedResourceIds.add(resId)) {
                     calculateResourceContribution(logEntry, resourceTagsMap, tagWeightsConfig, scoreConfig, resourceScores);
@@ -94,22 +98,68 @@ public class ProfileCalculator {
             });
 
             if (cScoring == null) {
-                // 兜底逻辑：如果拿不到课程配置，使用全局默认权重加到 dimension1
-                BigDecimal basePoints = defaultBehaviorWeights.getBigDecimal(type, BigDecimal.ZERO);
-                if (basePoints.compareTo(BigDecimal.ZERO) > 0) {
-                    courseScores.put("dimension1", courseScores.get("dimension1").add(basePoints));
+                // 不再进行兜底，直接跳过
+                continue;
+            }
+
+            Long objId = logEntry.getBehaviorObjectId();
+
+            // 1. 课件计分去重 (同一个课件只计分一次)
+            if (isViewBehavior(type)) {
+                if (objId != null && !viewedCoursewareIds.add(objId)) {
+                    continue;
+                }
+            }
+
+            // 2. 话题计分去重 (同一个话题回复多次仅计一次，包含回复的回复)
+            if ("POST_COMMENT".equals(type) || "GROUP_DISCUSS".equals(type)) {
+                Long topicId = objId;
+                // 对于 POST_COMMENT，需要区分是发帖还是回复，并统一使用 postId 去重
+                if ("POST_COMMENT".equals(type) && logEntry.getBehaviorData() != null) {
+                    try {
+                        JSONObject data = JSONUtil.parseObj(logEntry.getBehaviorData());
+                        // 如果是回复 (isPost=false)，objId 是评论 ID，真正的去重 ID 是 postId
+                        if (Boolean.FALSE.equals(data.getBool("isPost"))) {
+                            topicId = data.getLong("postId");
+                        }
+                    } catch (Exception e) {
+                        // 忽略解析错误，退回到 objId
+                    }
+                }
+                if (topicId != null && !viewedTopicIds.add(topicId)) {
+                    continue;
+                }
+            }
+
+            BigDecimal points = calculateBehaviorPoints(logEntry, defaultBehaviorWeights);
+            
+            // 3. 任务计分优化 (同一个任务取历次提交的最高分)
+            if ("SUBMIT_TASK".equals(type) || "SUBMIT_HOMEWORK".equals(type) || "SUBMIT_ANSWER".equals(type)) {
+                if (objId != null) {
+                    BigDecimal currentMax = taskMaxPoints.getOrDefault(objId, BigDecimal.ZERO);
+                    if (points.compareTo(currentMax) > 0) {
+                        taskMaxPoints.put(objId, points);
+                        taskConfigs.put(objId, cScoring);
+                    }
                 }
                 continue;
             }
 
-            // 计算该行为产生的点数 (简化版: 始终使用全局管理员配置)
-            BigDecimal points = calculateBehaviorPoints(logEntry, defaultBehaviorWeights);
             if (points.compareTo(BigDecimal.ZERO) <= 0) {
+                // 在没有基础分数的情况下，若是浏览类行为，尝试根据资源标签补分 (计入 resourceScores)
+                if (isViewBehavior(type)) {
+                    calculateResourceContribution(logEntry, resourceTagsMap, tagWeightsConfig, scoreConfig, resourceScores);
+                }
                 continue;
             }
 
-            // 根据该课程选中的维度全额分摊点数 (不再均分)
+            // 根据该课程选中的维度全额分摊点数
             distributeFullToSelectedDimensions(points, cScoring, courseScores);
+        }
+
+        // 4. 将各任务的最高得分批量结算
+        for (java.util.Map.Entry<Long, BigDecimal> entry : taskMaxPoints.entrySet()) {
+            distributeFullToSelectedDimensions(entry.getValue(), taskConfigs.get(entry.getKey()), courseScores);
         }
 
         // 3. 封顶处理并合并结果
@@ -147,17 +197,25 @@ public class ProfileCalculator {
     private BigDecimal calculateBehaviorPoints(BehaviorLog logEntry, JSONObject defaultWeights) {
         String type = logEntry.getBehaviorType();
         
-        // 获取该行为的基础分值 (支持从复数层级中读取，或直接读取数值)
+        // 1. 类型别名兼容
+        if ("SUBMIT_HOMEWORK".equals(type)) type = "SUBMIT_TASK";
+        if ("SUBMIT_ANSWER".equals(type)) type = "SUBMIT_TASK";
+        if ("WATCH_VIDEO".equals(type) || "READ_DOC".equals(type)) type = "VIEW_COURSEWARE"; // 统一按课件浏览计分
+
+        // 2. 获取该行为的基础分值
         BigDecimal basePoints = BigDecimal.ZERO;
         Object val = defaultWeights.get(type);
         if (val instanceof Number) {
             basePoints = new BigDecimal(val.toString());
         } else if (val instanceof JSONObject) {
-            // 兼容旧的复杂结构（如果有的话）
             basePoints = ((JSONObject) val).getBigDecimal("points", BigDecimal.ZERO);
         }
 
-        // 如果是提交任务类型，且带有表现分数数据，则按比例计算
+        if (basePoints == null || basePoints.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        // 3. 如果是提交任务类型，且带有表现分数数据，则按比例计算
         if ("SUBMIT_TASK".equals(type) && logEntry.getBehaviorData() != null) {
             try {
                 JSONObject data = JSONUtil.parseObj(logEntry.getBehaviorData());
@@ -165,7 +223,6 @@ public class ProfileCalculator {
                 BigDecimal totalScore = data.getBigDecimal("total", null);
 
                 if (userScore != null && totalScore != null && totalScore.compareTo(BigDecimal.ZERO) > 0) {
-                    // 实际得分 = (用户分数 / 总分) * 基础分
                     return userScore.divide(totalScore, 4, RoundingMode.HALF_UP).multiply(basePoints);
                 }
             } catch (Exception e) {
@@ -173,7 +230,18 @@ public class ProfileCalculator {
             }
         }
 
-        // 其他类型 (回复精华等) 或无比例数据时，计全额基础分
+        // 4. 话题得分过滤：如果是发布话题（Teacher 行为），则不计分
+        if ("POST_COMMENT".equals(type) && logEntry.getBehaviorData() != null) {
+            try {
+                JSONObject data = JSONUtil.parseObj(logEntry.getBehaviorData());
+                if (Boolean.TRUE.equals(data.getBool("isPost"))) {
+                    return BigDecimal.ZERO;
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+
         return basePoints;
     }
 
@@ -181,21 +249,34 @@ public class ProfileCalculator {
      * 全额分配：将点数全额叠加到所有选中的维度轴上 (不进行均分)
      */
     private void distributeFullToSelectedDimensions(BigDecimal points, CourseScoringDTO config, Map<String, BigDecimal> scores) {
-        JSONObject dimWeights = JSONUtil.parseObj(config.getDimensionWeights());
-        if (dimWeights == null) return;
+        String weightsStr = config.getDimensionWeights();
+        if (weightsStr == null || weightsStr.trim().isEmpty() || "{}".equals(weightsStr)) {
+            // 不再进行兜底，直接返回
+            return;
+        }
+        
+        JSONObject dimWeights = JSONUtil.parseObj(weightsStr);
+        if (dimWeights == null) {
+            return;
+        }
 
         for (int i = 1; i <= 6; i++) {
             String key = "dimension" + i;
             BigDecimal weight = dimWeights.getBigDecimal(key);
-            if (weight == null) {
-                weight = dimWeights.getBigDecimal("dimension_" + i, BigDecimal.ZERO);
-            }
+            if (weight == null) weight = dimWeights.getBigDecimal("dimension_" + i, BigDecimal.ZERO);
             
-            // 如果该维度被选中 (权重 >= 1)，则叠加全额点数
-            if (weight.compareTo(BigDecimal.ONE) >= 0) {
+            // 兼容性逻辑：无论是旧版的百分比权重(0.x)还是新版的勾选(1.0)
+            // 只要权重 > 0，就视为该行为影响此维度，按照“不分摊”原则全额叠加
+            if (weight.compareTo(BigDecimal.ZERO) > 0) {
                 scores.put(key, scores.get(key).add(points));
             }
         }
+    }
+
+    private boolean isViewBehavior(String type) {
+        return "RESOURCE_VIEW".equals(type) || "WATCH_VIDEO".equals(type) || 
+               "READ_DOC".equals(type) || "VIEW_CASE".equals(type) || 
+               "VIEW_COURSEWARE".equals(type);
     }
 
     /**

@@ -1,6 +1,5 @@
 package com.edu.platform.course.client;
 
-import com.edu.platform.common.dto.BehaviorLogDTO;
 import com.edu.platform.common.result.Result;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,9 +11,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "report-service", path = "/internal/behavior")
 public interface BehaviorClient {
 
-    /**
-     * 上报行为日志
-     */
     @PostMapping("/log")
-    Result<Void> logBehavior(@RequestBody BehaviorLogDTO request);
+    Result<Void> logBehavior(@RequestBody com.edu.platform.common.dto.BehaviorLogDTO request);
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/log")
+    Result<Void> deleteBehavior(
+            @org.springframework.web.bind.annotation.RequestParam("type") String type,
+            @org.springframework.web.bind.annotation.RequestParam("objectId") Long objectId);
 }

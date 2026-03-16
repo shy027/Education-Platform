@@ -30,5 +30,13 @@ public class BehaviorController {
         behaviorService.logBehavior(request);
         return Result.success();
     }
-    
+
+    @Operation(summary = "删除行为记录")
+    @org.springframework.web.bind.annotation.DeleteMapping("/log")
+    public Result<Void> deleteBehavior(
+            @org.springframework.web.bind.annotation.RequestParam String type,
+            @org.springframework.web.bind.annotation.RequestParam Long objectId) {
+        behaviorService.deleteBehavior(type, objectId);
+        return Result.success();
+    }
 }

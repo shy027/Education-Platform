@@ -17,4 +17,12 @@ public interface BehaviorClient {
      */
     @PostMapping("/log")
     Result<Void> logBehavior(@RequestBody BehaviorLogDTO request);
+
+    /**
+     * 删除行为日志
+     */
+    @org.springframework.web.bind.annotation.DeleteMapping("/log")
+    Result<Void> deleteBehavior(
+            @org.springframework.web.bind.annotation.RequestParam("type") String type,
+            @org.springframework.web.bind.annotation.RequestParam("objectId") Long objectId);
 }

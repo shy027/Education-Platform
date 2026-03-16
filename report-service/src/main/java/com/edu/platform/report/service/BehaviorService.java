@@ -23,5 +23,12 @@ public interface BehaviorService {
      * @param courseId 课程ID
      */
     void triggerCalculate(Long userId, Long courseId);
-    
+
+    /**
+     * 删除行为记录
+     *
+     * @param type 类型
+     * @param objectId 对象ID
+     */
+    void deleteBehavior(String type, Long objectId);
 }

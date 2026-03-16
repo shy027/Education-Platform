@@ -384,8 +384,18 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         }
         
         // 设置审核结果
-        course.setAuditStatus(request.getApproved() ? 1 : 2); // 1=通过, 2=拒绝
-        // TODO: 记录审核备注和审核人（需要添加字段）
+        boolean isApproved = request.getApproved();
+        course.setAuditStatus(isApproved ? 1 : 2); // 1=通过, 2=拒绝
+        
+        // 如果审核通过，自动将课程状态设为“开放” (1)
+        if (isApproved) {
+            course.setStatus(1);
+        }
+        
+        // 记录审核详细信息
+        course.setAuditorId(currentUserId);
+        course.setAuditTime(java.time.LocalDateTime.now());
+        course.setAuditRemark(request.getAuditRemark());
         
         this.updateById(course);
     }
