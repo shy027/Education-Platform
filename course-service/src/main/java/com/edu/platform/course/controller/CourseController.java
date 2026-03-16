@@ -78,4 +78,18 @@ public class CourseController {
         courseService.updateStatus(id, status);
         return Result.success();
     }
+
+    @Operation(summary = "提交审核")
+    @PostMapping("/{id}/review")
+    public Result<Void> submitForReview(@PathVariable Long id) {
+        courseService.submitForReview(id);
+        return Result.success("提交审核成功", null);
+    }
+
+    @Operation(summary = "删除草稿")
+    @DeleteMapping("/{id}")
+    public Result<Void> deleteDraft(@PathVariable Long id) {
+        courseService.deleteDraft(id);
+        return Result.success("删除成功", null);
+    }
 }

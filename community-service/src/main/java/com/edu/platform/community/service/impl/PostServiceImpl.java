@@ -50,6 +50,9 @@ public class PostServiceImpl implements PostService {
     
     @Autowired(required = false)
     private AuditRequestSender auditRequestSender;
+
+    @Autowired(required = false)
+    private com.edu.platform.community.client.BehaviorClient behaviorClient;
     
     @Autowired
     public PostServiceImpl(CommunityPostMapper postMapper, PermissionUtil permissionUtil) {
@@ -95,6 +98,24 @@ public class PostServiceImpl implements PostService {
         }
         
         log.info("讨论话题创建成功, postId={}", post.getId());
+
+        // 上报行为日志
+        if (behaviorClient != null) {
+            try {
+                behaviorClient.logBehavior(com.edu.platform.common.dto.BehaviorLogDTO.builder()
+                        .userId(userId)
+                        .courseId(request.getCourseId())
+                        .behaviorType("POST_COMMENT")
+                        .behaviorObjectId(post.getId())
+                        .behaviorData(cn.hutool.json.JSONUtil.createObj()
+                                .set("title", post.getPostTitle())
+                                .set("isPost", true)
+                                .toString())
+                        .build());
+            } catch (Exception e) {
+                log.error("上报帖子创建行为失败", e);
+            }
+        }
         
         // TODO: 更新课程讨论数 course_info.discussion_count + 1
         // courseInfoMapper.update(null, 
@@ -334,6 +355,23 @@ public class PostServiceImpl implements PostService {
         postMapper.updateById(post);
         
         log.info("话题精华状态更新成功, postId={}, isEssence={}", postId, isEssence);
+
+        // 如果设置为精华，上报额外行为
+        if (isEssence == 1 && behaviorClient != null) {
+            try {
+                behaviorClient.logBehavior(com.edu.platform.common.dto.BehaviorLogDTO.builder()
+                        .userId(post.getUserId()) // 加分给作者
+                        .courseId(post.getCourseId())
+                        .behaviorType("ESSENCE_POST")
+                        .behaviorObjectId(post.getId())
+                        .behaviorData(cn.hutool.json.JSONUtil.createObj()
+                                .set("title", post.getPostTitle())
+                                .toString())
+                        .build());
+            } catch (Exception e) {
+                log.error("上报精华帖行为失败", e);
+            }
+        }
     }
     
     @Override

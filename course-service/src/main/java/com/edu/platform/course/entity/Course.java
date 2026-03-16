@@ -67,4 +67,22 @@ public class Course extends BaseEntity {
      * 状态:0关闭,1开放,2归档
      */
     private Integer status;
+
+    /**
+     * 维度权重配置 (JSON)
+     */
+    @com.baomidou.mybatisplus.annotation.TableField("dimension_weights")
+    private String dimensionWeights;
+
+    /**
+     * 评分构成配置 (JSON)
+     */
+    @com.baomidou.mybatisplus.annotation.TableField("scoring_config")
+    private String scoringConfig;
+
+    /**
+     * 维度定义锁定:0否,1是
+     */
+    @com.baomidou.mybatisplus.annotation.TableField("is_dimension_locked")
+    private Integer isDimensionLocked;
 }

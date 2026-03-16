@@ -50,6 +50,9 @@ public class CommentServiceImpl implements CommentService {
     
     @Autowired
     private com.edu.platform.community.mapper.CommunityCommentLikeMapper commentLikeMapper;
+
+    @Autowired(required = false)
+    private com.edu.platform.community.client.BehaviorClient behaviorClient;
     
     @Autowired
     public CommentServiceImpl(CommunityCommentMapper commentMapper, 
@@ -127,6 +130,24 @@ public class CommentServiceImpl implements CommentService {
         );
         
         log.info("观点发表成功, commentId={}", comment.getId());
+
+        // 上报行为日志
+        if (behaviorClient != null) {
+            try {
+                behaviorClient.logBehavior(com.edu.platform.common.dto.BehaviorLogDTO.builder()
+                        .userId(userId)
+                        .courseId(post.getCourseId())
+                        .behaviorType("POST_COMMENT")
+                        .behaviorObjectId(comment.getId())
+                        .behaviorData(cn.hutool.json.JSONUtil.createObj()
+                                .set("postId", post.getId())
+                                .set("isPost", false)
+                                .toString())
+                        .build());
+            } catch (Exception e) {
+                log.error("上报评论发表行为失败", e);
+            }
+        }
         
         // 返回详情
         return convertToResponse(comment, userId);

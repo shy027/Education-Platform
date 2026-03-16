@@ -86,8 +86,13 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         course.setCoursewareCount(0);
         course.setTaskCount(0);
         course.setDiscussionCount(0);
-        course.setAuditStatus(0); // 待审核
-        course.setStatus(1); // 默认开放
+        course.setAuditStatus(-1); // 草稿
+        course.setStatus(0); // 默认关闭 (待审核通过后视时间开启)
+        course.setIsDimensionLocked(0); // 初始未锁定
+
+        // 保存维度权重和评分配置
+        course.setDimensionWeights(request.getDimensionWeights());
+        course.setScoringConfig(request.getScoringConfig());
 
         this.save(course);
         return course.getId();
@@ -111,7 +116,23 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
              throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权修改此课程");
         }
 
-        BeanUtil.copyProperties(request, course);
+        // 提交审核后锁定逻辑: 若 auditStatus 为 0(待审核) 或 1(通过)，非管理员不可修改基本信息
+        boolean isAdmin = PermissionUtil.isAdminOrLeader();
+        if (!isAdmin && (course.getAuditStatus() == 0 || course.getAuditStatus() == 1)) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "课程已提交审核或已通过，基本信息已锁定");
+        }
+
+        // 校验维度锁定逻辑
+        if (course.getIsDimensionLocked() == 1 && !isAdmin) {
+            // 如果已锁定且不是管理员，禁止修改维度权重和锁定状态
+            if (request.getDimensionWeights() != null && !request.getDimensionWeights().equals(course.getDimensionWeights())) {
+                throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "维度定义已锁定，仅管理员可修改");
+            }
+            // 防止教师通过 update 接口自己解锁
+            request.setIsDimensionLocked(1); 
+        }
+
+        BeanUtil.copyProperties(request, course, "id", "teacherId", "courseCode");
         this.updateById(course);
     }
 
@@ -367,5 +388,50 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         // TODO: 记录审核备注和审核人（需要添加字段）
         
         this.updateById(course);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void submitForReview(Long id) {
+        Course course = this.getById(id);
+        if (course == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_FOUND.getCode(), "课程不存在");
+        }
+        
+        Long currentUserId = UserContext.getUserId();
+        if (!PermissionUtil.hasCourseManagePermission(course.getTeacherId(), currentUserId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权修改此课程");
+        }
+
+        if (course.getAuditStatus() != -1 && course.getAuditStatus() != 2) {
+            throw new BusinessException(ResultCode.FAIL.getCode(), "该课程状态不可重复提交审核");
+        }
+
+        if (StrUtil.isBlank(course.getCourseName())) {
+            throw new BusinessException(ResultCode.FAIL.getCode(), "课程名称不能为空，请先完善基本信息");
+        }
+
+        course.setAuditStatus(0); // 待审核
+        this.updateById(course);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteDraft(Long id) {
+        Course course = this.getById(id);
+        if (course == null) {
+            return;
+        }
+
+        Long currentUserId = UserContext.getUserId();
+        if (!PermissionUtil.hasCourseManagePermission(course.getTeacherId(), currentUserId)) {
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权删除此课程");
+        }
+
+        if (course.getAuditStatus() != -1 && course.getAuditStatus() != 2) {
+            throw new BusinessException(ResultCode.FAIL.getCode(), "非草稿或已拒绝状态的课程不可删除");
+        }
+
+        this.removeById(id); // MyBatis Plus 开启了逻辑删除
     }
 }

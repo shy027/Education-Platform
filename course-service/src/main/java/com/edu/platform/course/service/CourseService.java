@@ -69,4 +69,17 @@ public interface CourseService extends IService<Course> {
      * @param request 审核请求
      */
     void auditCourse(Long id, CourseAuditRequest request);
+    /**
+     * 提交审核
+     *
+     * @param id 课程ID
+     */
+    void submitForReview(Long id);
+
+    /**
+     * 删除草稿 (逻辑删除)
+     *
+     * @param id 课程ID
+     */
+    void deleteDraft(Long id);
 }

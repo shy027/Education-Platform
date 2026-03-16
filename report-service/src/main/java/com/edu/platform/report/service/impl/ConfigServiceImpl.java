@@ -141,16 +141,28 @@ public class ConfigServiceImpl implements ConfigService {
     public String getBehaviorWeights() {
         String value = getConfigValue("profile.behavior_weights");
         if (value == null) {
-            // 提供默认行为权重 (JSON)
+            // 提供默认行为基础分值 (新版扁平化结构)
             return "{\n" +
-                    "  \"VIEW_COURSEWARE\": {\"dimension1\": 0.4, \"dimension2\": 0.3, \"dimension6\": 0.3},\n" +
-                    "  \"VIEW_CASE\": {\"dimension1\": 0.2, \"dimension2\": 0.4, \"dimension4\": 0.4},\n" +
-                    "  \"WATCH_VIDEO\": {\"dimension1\": 0.5, \"dimension2\": 0.2, \"dimension6\": 0.3},\n" +
-                    "  \"POST_COMMENT\": {\"dimension3\": 0.5, \"dimension5\": 0.5},\n" +
-                    "  \"SUBMIT_HOMEWORK\": {\"dimension2\": 0.4, \"dimension4\": 0.3, \"dimension6\": 0.3}\n" +
+                    "  \"VIEW_COURSEWARE\": 2.0,\n" +
+                    "  \"SUBMIT_TASK\": 10.0,\n" +
+                    "  \"POST_COMMENT\": 2.0,\n" +
+                    "  \"ESSENCE_POST\": 5.0\n" +
                     "}";
         }
         return value;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateBehaviorWeights(Map<String, BigDecimal> weights) {
+        try {
+            String updatedJson = objectMapper.writeValueAsString(weights);
+            updateConfig("profile.behavior_weights", updatedJson);
+            log.info("行为基础分值更新成功: {}", weights);
+        } catch (Exception e) {
+            log.error("更新行为基础分值失败", e);
+            throw new RuntimeException("更新行为基础分值失败: " + e.getMessage());
+        }
     }
     
     

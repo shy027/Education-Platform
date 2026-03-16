@@ -35,6 +35,8 @@ public class GradingServiceImpl implements GradingService {
     private final ExamQuestionMapper questionMapper;
     private final ExamQuestionOptionMapper optionMapper;
     private final CourseTaskQuestionMapper taskQuestionMapper;
+    private final CourseTaskMapper taskMapper;
+    private final com.edu.platform.course.client.BehaviorClient behaviorClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -108,6 +110,27 @@ public class GradingServiceImpl implements GradingService {
         recordMapper.updateById(record);
 
         log.info("自动评分完成, recordId={}, totalScore={}", recordId, totalScore);
+
+        // 7. 上报行为日志
+        try {
+            CourseTask task = taskMapper.selectById(record.getTaskId());
+            if (task != null) {
+                com.edu.platform.common.dto.BehaviorLogDTO behaviorDTO = com.edu.platform.common.dto.BehaviorLogDTO.builder()
+                        .userId(record.getUserId())
+                        .courseId(task.getCourseId())
+                        .behaviorType("SUBMIT_TASK")
+                        .behaviorObjectId(task.getId())
+                        .behaviorData(cn.hutool.json.JSONUtil.createObj()
+                                .set("score", record.getTotalScore())
+                                .set("total", task.getTotalScore())
+                                .set("taskType", task.getTaskType())
+                                .toString())
+                        .build();
+                behaviorClient.logBehavior(behaviorDTO);
+            }
+        } catch (Exception e) {
+            log.error("上报任务提交行为失败, recordId={}", recordId, e);
+        }
     }
 
     @Override
@@ -146,6 +169,27 @@ public class GradingServiceImpl implements GradingService {
 
         // 重新计算总分
         recalculateTotalScore(answer.getRecordId());
+
+        // 触发行为上行报
+        try {
+            ExamRecord record = recordMapper.selectById(answer.getRecordId());
+            CourseTask task = taskMapper.selectById(record.getTaskId());
+            if (task != null) {
+                behaviorClient.logBehavior(com.edu.platform.common.dto.BehaviorLogDTO.builder()
+                        .userId(record.getUserId())
+                        .courseId(task.getCourseId())
+                        .behaviorType("SUBMIT_TASK")
+                        .behaviorObjectId(task.getId())
+                        .behaviorData(cn.hutool.json.JSONUtil.createObj()
+                                .set("score", record.getTotalScore())
+                                .set("total", task.getTotalScore())
+                                .set("taskType", task.getTaskType())
+                                .toString())
+                        .build());
+            }
+        } catch (Exception e) {
+            log.error("手动评分后上报行为失败, answerId={}", request.getAnswerId(), e);
+        }
 
         log.info("批改答案成功, answerId={}, score={}", request.getAnswerId(), request.getScore());
     }

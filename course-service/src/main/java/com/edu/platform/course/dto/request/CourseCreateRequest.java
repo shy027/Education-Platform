@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 @Data
 public class CourseCreateRequest {
 
-    @NotBlank(message = "课程名称不能为空")
     private String courseName;
     
     private String courseCover;
@@ -21,7 +20,6 @@ public class CourseCreateRequest {
     
     private String subjectArea;
     
-    @NotNull(message = "所属学校不能为空")
     private Long schoolId;
     
     /**
@@ -36,4 +34,14 @@ public class CourseCreateRequest {
     
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime endTime;
+
+    /**
+     * 维度权重配置 (JSON)
+     */
+    private String dimensionWeights;
+
+    /**
+     * 评分构成配置 (JSON)
+     */
+    private String scoringConfig;
 }

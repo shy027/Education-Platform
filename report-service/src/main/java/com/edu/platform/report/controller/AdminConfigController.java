@@ -1,12 +1,15 @@
 package com.edu.platform.report.controller;
 
 import com.edu.platform.common.result.Result;
+import com.edu.platform.report.dto.BehaviorWeightsUpdateRequest;
 import com.edu.platform.report.dto.ConfigDTO;
 import com.edu.platform.report.dto.ScoreConfigUpdateRequest;
 import com.edu.platform.report.dto.TagWeightsUpdateRequest;
 import com.edu.platform.report.dto.ThresholdsUpdateRequest;
 import com.edu.platform.report.dto.WeightsUpdateRequest;
 import com.edu.platform.report.service.ConfigService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +36,7 @@ import java.util.Map;
 public class AdminConfigController {
     
     private final ConfigService configService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
     /**
      * 获取权重配置
@@ -136,6 +140,65 @@ public class AdminConfigController {
         }
     }
     
+    /**
+     * 获取行为基础分值配置
+     */
+    @GetMapping("/behavior-weights")
+    @Operation(summary = "获取行为基础分值", description = "获取回复讨论/任务提交等行为的基础加分值")
+    public Result<Map<String, BigDecimal>> getBehaviorWeights() {
+        try {
+            String json = configService.getBehaviorWeights();
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(json);
+            Map<String, BigDecimal> weights = new HashMap<>();
+            
+            // 定义我们关心的行为 Key
+            String[] keys = {"VIEW_COURSEWARE", "SUBMIT_TASK", "POST_COMMENT", "ESSENCE_POST"};
+            for (String key : keys) {
+                com.fasterxml.jackson.databind.JsonNode node = root.get(key);
+                if (node == null || node.isNull()) {
+                    weights.put(key, BigDecimal.ZERO);
+                } else if (node.isNumber()) {
+                    weights.put(key, node.decimalValue());
+                } else {
+                    // 核心修复逻辑：如果是旧版的嵌套对象格式，这里不再报错，而是将其视为 0
+                    // 这样前端页面能正常打开，用户修改并保存后，数据库中的旧格式会被新格式（纯数值）覆盖
+                    log.info("检测到非数值格式行为权重 (可能为旧版嵌套数据), key={}, value={}", key, node);
+                    weights.put(key, BigDecimal.ZERO);
+                }
+            }
+            return Result.success(weights);
+        } catch (Exception e) {
+            log.error("获取行为权重失败", e);
+            Map<String, BigDecimal> defaults = new HashMap<>();
+            defaults.put("VIEW_COURSEWARE", BigDecimal.ZERO);
+            defaults.put("SUBMIT_TASK", BigDecimal.ZERO);
+            defaults.put("POST_COMMENT", BigDecimal.ZERO);
+            defaults.put("ESSENCE_POST", BigDecimal.ZERO);
+            return Result.success(defaults);
+        }
+    }
+
+    /**
+     * 更新行为基础分值配置
+     */
+    @PutMapping("/behavior-weights")
+    @Operation(summary = "更新行为基础分值", description = "更新回复讨论/任务提交等行为的基础加分值")
+    public Result<Void> updateBehaviorWeights(@RequestBody BehaviorWeightsUpdateRequest request) {
+        try {
+            Map<String, BigDecimal> weights = new HashMap<>();
+            weights.put("VIEW_COURSEWARE", request.getViewCourseware());
+            weights.put("SUBMIT_TASK", request.getSubmitTask());
+            weights.put("POST_COMMENT", request.getPostReply());
+            weights.put("ESSENCE_POST", request.getEssencePost());
+            
+            configService.updateBehaviorWeights(weights);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("更新行为权重失败", e);
+            return Result.fail("更新行为权重失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 获取评分占比及上限配置
      */

@@ -49,6 +49,13 @@ public interface ConfigService {
      * @return 行为权重JSON
      */
     String getBehaviorWeights();
+
+    /**
+     * 更新行为基础分值配置
+     *
+     * @param weights 行为分值Map
+     */
+    void updateBehaviorWeights(Map<String, BigDecimal> weights);
     
     /**
      * 获取等级阈值配置(Map格式)
