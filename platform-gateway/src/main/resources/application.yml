@@ -94,6 +94,13 @@ spring:
           predicates:
             - Path=/api/v1/audit/**
 
+        # AI 服务路由
+        # AiCourseController: /api/v1/ai/course
+        - id: ai-service
+          uri: lb://ai-service
+          predicates:
+            - Path=/api/v1/ai/**
+
         # Knife4j 文档聚合路由 - user-service
         - id: user-service-doc
           uri: lb://user-service
@@ -141,6 +148,14 @@ spring:
             - Path=/audit-service/v3/api-docs,/audit-service/v3/api-docs/**
           filters:
             - RewritePath=/audit-service(?<segment>/?.*), $\{segment}
+
+        # Knife4j 文档聚合路由 - ai-service
+        - id: ai-service-doc
+          uri: lb://ai-service
+          predicates:
+            - Path=/ai-service/v3/api-docs,/ai-service/v3/api-docs/**
+          filters:
+            - RewritePath=/ai-service(?<segment>/?.*), $\{segment}
 
       # CORS 跨域配置
       globalcors:
@@ -229,6 +244,10 @@ knife4j:
         url: /audit-service/v3/api-docs
         service-name: audit-service
         order: 6
+      - name: AI 服务
+        url: /ai-service/v3/api-docs
+        service-name: ai-service
+        order: 7
 
 # 日志配置
 logging:
