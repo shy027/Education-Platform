@@ -42,8 +42,8 @@ public class FileUploadServiceImpl implements FileUploadService {
     private static final List<String> IMAGE_TYPES = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp", "webp");
     // 允许的视频格式
     private static final List<String> VIDEO_TYPES = Arrays.asList("mp4", "avi", "mov", "wmv", "flv", "mkv");
-    // 允许的PDF格式
-    private static final List<String> PDF_TYPES = Arrays.asList("pdf");
+    // 允许的PDF及文档格式
+    private static final List<String> PDF_TYPES = Arrays.asList("pdf", "doc", "docx", "ppt", "pptx");
     
     // 图片最大5MB
     private static final long MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -105,13 +105,16 @@ public class FileUploadServiceImpl implements FileUploadService {
         validateFile(file, PDF_TYPES, MAX_PDF_SIZE);
         AttachmentUploadResponse response = uploadToOss(file, "docs");
         
-        // 提取PDF页数
-        try (InputStream is = file.getInputStream()) {
-            PDDocument document = PDDocument.load(is);
-            response.setPageCount(document.getNumberOfPages());
-            document.close();
-        } catch (Exception e) {
-            log.error("PDF页数提取失败", e);
+        String extension = getFileExtension(file.getOriginalFilename());
+        // 仅提取PDF页数
+        if ("pdf".equals(extension)) {
+            try (InputStream is = file.getInputStream()) {
+                PDDocument document = PDDocument.load(is);
+                response.setPageCount(document.getNumberOfPages());
+                document.close();
+            } catch (Exception e) {
+                log.error("PDF页数提取失败", e);
+            }
         }
         
         return response;

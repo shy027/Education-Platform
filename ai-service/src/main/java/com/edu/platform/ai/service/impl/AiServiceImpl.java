@@ -74,7 +74,7 @@ public class AiServiceImpl implements AiService {
                     "请包含以下字段：\n" +
                     "1. courseName: 课程名称\n" +
                     "2. courseIntro: 课程简介（100-200字）\n" +
-                    "3. subjectArea: 准确的学科领域名称（如：计机科学、机械工程、医学等）\n" +
+                    "3. subjectArea: 准确的学科领域名称（如：电子信息与计算机、机械工程类、医学与护理类等）\n" +
                     "4. suggestedTags: 建议的分类标签列表 (3-5个)\n" +
                     "5. suggestedDimensions: 匹配的素养考核维度。请仅从以下列表中选择 key：\n" +
                     "   - dimension1: 知识技能素养\n" +
@@ -180,7 +180,10 @@ public class AiServiceImpl implements AiService {
         userPrompt.append("课程背景信息：\n").append(courseContext).append("\n\n");
         userPrompt.append("候选资源列表：\n");
         userPrompt.append(JSON.toJSONString(resources.stream().map(r -> {
-            return "ID:" + r.getId() + ", 标题:" + r.getTitle() + ", 摘要:" + r.getSummary();
+            String tags = r.getTags() != null ? r.getTags().stream()
+                    .map(ResourceClient.ResourceDTO.TagInfo::getTagName)
+                    .collect(Collectors.joining(",")) : "";
+            return "ID:" + r.getId() + ", 标题:" + r.getTitle() + ", 摘要:" + r.getSummary() + ", 标签:[" + tags + "]";
         }).collect(Collectors.toList())));
 
         // 调用 AI

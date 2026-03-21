@@ -66,18 +66,14 @@ public class ResourceServiceImpl implements ResourceService {
         resource.setCollectCount(0);
         
         // 根据角色设置状态
+        // 初始状态统一为草稿
         if ("ADMIN".equals(userRole)) {
-            // 管理员直接发布
-            resource.setCreatorType(1);
-            resource.setStatus(2); // 已发布
-            resource.setAuditStatus(1); // 审核通过
-            resource.setPublishedTime(LocalDateTime.now());
+            resource.setCreatorType(1); // 管理员
         } else {
-            // 教师保存为草稿
-            resource.setCreatorType(2);
-            resource.setStatus(0); // 草稿
-            resource.setAuditStatus(null);
+            resource.setCreatorType(2); // 教师
         }
+        resource.setStatus(0); // 草稿
+        resource.setAuditStatus(null);
         
         resourceMapper.insert(resource);
         
@@ -345,12 +341,22 @@ public class ResourceServiceImpl implements ResourceService {
             throw new BusinessException("无权提交此资源");
         }
         
-        // 状态检查
-        if (resource.getStatus() != 0) {
-            throw new BusinessException("只有草稿状态的资源才能提交审核");
+        // 状态检查：只有非待审核状态的资源才能提交审核（避免重复提交）
+        if (resource.getStatus() == 1) {
+            throw new BusinessException("该资源已在审核中，请勿重复提交");
         }
         
-        // 更新状态
+        // 判断是否为管理员：管理员提交则直接发布
+        if (com.edu.platform.common.utils.UserContext.hasRole("ADMIN")) {
+            resource.setStatus(2); // 已发布
+            resource.setAuditStatus(1); // 审核通过
+            resource.setPublishedTime(LocalDateTime.now());
+            resourceMapper.updateById(resource);
+            log.info("管理员直接发布资源成功: resourceId={}, userId={}", resourceId, userId);
+            return;
+        }
+
+        // 普通用户流程：更新状态为待审核
         resource.setStatus(1); // 待审核
         resource.setAuditStatus(0); // 待审核
         resourceMapper.updateById(resource);
