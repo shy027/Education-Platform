@@ -77,12 +77,11 @@ public class AiServiceImpl implements AiService {
                     "3. subjectArea: 准确的学科领域名称（如：计机科学、机械工程、医学等）\n" +
                     "4. suggestedTags: 建议的分类标签列表 (3-5个)\n" +
                     "5. suggestedDimensions: 匹配的素养考核维度。请仅从以下列表中选择 key：\n" +
-                    "   - dimension1: 专业理论\n" +
-                    "   - dimension2: 技术技能\n" +
-                    "   - dimension3: 职业认同\n" +
-                    "   - dimension4: 工艺创新\n" +
-                    "   - dimension5: 社会责任\n" +
-                    "   - dimension6: 持续发展\n" +
+                    "   - dimension1: 知识技能素养\n" +
+                    "   - dimension2: 职业品格素养\n" +
+                    "   - dimension3: 创新实践素养\n" +
+                    "   - dimension4: 社会责任素养\n" +
+                    "   - dimension5: 发展适应素养\n" +
                     "6. keywords: 核心关键词 (5个)\n\n" +
                     "严格按 JSON 格式输出，不要输出其他非 JSON 内容。\n" +
                     "输出格式示例：{\"courseName\":\"...\",\"courseIntro\":\"...\",\"subjectArea\":\"...\",\"suggestedTags\":[\"...\"],\"suggestedDimensions\":[\"dimension1\",\"dimension2\"],\"keywords\":[\"...\"]}";

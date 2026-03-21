@@ -8,7 +8,6 @@ import com.edu.platform.report.dto.TagWeightsUpdateRequest;
 import com.edu.platform.report.dto.ThresholdsUpdateRequest;
 import com.edu.platform.report.dto.WeightsUpdateRequest;
 import com.edu.platform.report.service.ConfigService;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -67,7 +66,6 @@ public class AdminConfigController {
             weights.put("dimension3", request.getDimension3());
             weights.put("dimension4", request.getDimension4());
             weights.put("dimension5", request.getDimension5());
-            weights.put("dimension6", request.getDimension6());
             
             // 验证权重总和是否为1
             BigDecimal sum = weights.values().stream()

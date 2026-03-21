@@ -69,11 +69,6 @@ public class StudentProfile extends BaseEntity {
     @TableField("dimension_5_score")
     private BigDecimal dimension5Score;
     
-    /**
-     * 维度6得分
-     */
-    @TableField("dimension_6_score")
-    private BigDecimal dimension6Score;
     
     /**
      * 综合得分

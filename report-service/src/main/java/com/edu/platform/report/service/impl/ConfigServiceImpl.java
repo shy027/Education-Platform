@@ -88,14 +88,12 @@ public class ConfigServiceImpl implements ConfigService {
     public Map<String, BigDecimal> getDimensionWeights() {
         String weightsJson = getConfigValue("profile.dimension_weights");
         if (weightsJson == null) {
-            // 返回默认权重 (6维)
             Map<String, BigDecimal> defaultWeights = new HashMap<>();
-            defaultWeights.put("dimension1", new BigDecimal("0.15"));
+            defaultWeights.put("dimension1", new BigDecimal("0.20"));
             defaultWeights.put("dimension2", new BigDecimal("0.20"));
-            defaultWeights.put("dimension3", new BigDecimal("0.15"));
-            defaultWeights.put("dimension4", new BigDecimal("0.15"));
-            defaultWeights.put("dimension5", new BigDecimal("0.15"));
-            defaultWeights.put("dimension6", new BigDecimal("0.20"));
+            defaultWeights.put("dimension3", new BigDecimal("0.20"));
+            defaultWeights.put("dimension4", new BigDecimal("0.20"));
+            defaultWeights.put("dimension5", new BigDecimal("0.20"));
             return defaultWeights;
         }
         
@@ -121,12 +119,11 @@ public class ConfigServiceImpl implements ConfigService {
         String namesJson = getConfigValue("profile.dimension_names");
         if (namesJson == null) {
             Map<String, String> defaultNames = new HashMap<>();
-            defaultNames.put("dimension1", "专业理论");
-            defaultNames.put("dimension2", "技术技能");
-            defaultNames.put("dimension3", "职业认同");
-            defaultNames.put("dimension4", "工艺创新");
-            defaultNames.put("dimension5", "社会责任");
-            defaultNames.put("dimension6", "持续发展");
+            defaultNames.put("dimension1", "知识技能素养");
+            defaultNames.put("dimension2", "职业品格素养");
+            defaultNames.put("dimension3", "创新实践素养");
+            defaultNames.put("dimension4", "社会责任素养");
+            defaultNames.put("dimension5", "发展适应素养");
             return defaultNames;
         }
         try {

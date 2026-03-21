@@ -22,7 +22,7 @@ public class TagWeightsUpdateRequest {
         @Schema(description = "该标签的分数上限", example = "10.0")
         private Double maxScore;
         
-        @Schema(description = "六维度权重分配 (Key: dimension1~6, Value: 0~5星级)")
+        @Schema(description = "五维度权重分配 (Key: dimension1~5, Value: 0~5星级)")
         private Map<String, Double> weights;
     }
 }

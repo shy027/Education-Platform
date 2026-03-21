@@ -51,8 +51,8 @@ public class ProfileCalculator {
         // 用于缓存课程配置，避免重复调用
         Map<Long, CourseScoringDTO> courseCache = new HashMap<>();
 
-        // 1. 初始化维度和分值
-        for (int i = 1; i <= 6; i++) {
+        // 1. 初始化维度和分值 (改为 5 维度)
+        for (int i = 1; i <= 5; i++) {
             courseScores.put("dimension" + i, BigDecimal.ZERO);
             resourceScores.put("dimension" + i, BigDecimal.ZERO);
         }
@@ -166,7 +166,7 @@ public class ProfileCalculator {
         BigDecimal courseCap = scoreConfig.getOrDefault("course_cap", new BigDecimal("80"));
         BigDecimal resourceCap = scoreConfig.getOrDefault("resource_cap", new BigDecimal("20"));
 
-        for (int i = 1; i <= 6; i++) {
+        for (int i = 1; i <= 5; i++) {
             String dimKey = "dimension" + i;
             
             // 课程侧得分上限限制
@@ -260,7 +260,7 @@ public class ProfileCalculator {
             return;
         }
 
-        for (int i = 1; i <= 6; i++) {
+        for (int i = 1; i <= 5; i++) {
             String key = "dimension" + i;
             BigDecimal weight = dimWeights.getBigDecimal(key);
             if (weight == null) weight = dimWeights.getBigDecimal("dimension_" + i, BigDecimal.ZERO);
@@ -313,7 +313,7 @@ public class ProfileCalculator {
                 // 标签本身可能也有上限分限制 (max_score)
                 // TODO: 考虑在全局画像处理器中实现跨行为的标签封顶逻辑
 
-                for (int i = 1; i <= 6; i++) {
+                for (int i = 1; i <= 5; i++) {
                     String dimKey = "dimension" + i;
                     Object val = weightsMap.get(dimKey);
                     if (val == null) {
@@ -321,7 +321,13 @@ public class ProfileCalculator {
                     }
                     
                     if (val != null) {
-                        BigDecimal weight = new BigDecimal(val.toString());
+                        BigDecimal weightVal = new BigDecimal(val.toString());
+                        // 换算逻辑：如果是星级评分 (1.0 - 5.0)，则除以 5 得到 0.2 - 1.0 的实际权重系数
+                        // 如果原本存的就是小数 (0.x)，只要 > 1 就在此做转换，兼容新旧方案
+                        BigDecimal weight = weightVal.compareTo(BigDecimal.ONE) > 0 
+                                ? weightVal.divide(new BigDecimal("5.0"), 4, RoundingMode.HALF_UP) 
+                                : weightVal;
+                        
                         // 贡献 = 单次浏览分 * 标签在此维度的占比权重
                         BigDecimal contribution = viewPoint.multiply(weight);
                         
@@ -342,7 +348,7 @@ public class ProfileCalculator {
      */
     public BigDecimal calculateTotalScore(Map<String, BigDecimal> dimensionScores, Map<String, BigDecimal> dimensionWeights) {
         BigDecimal totalScore = BigDecimal.ZERO;
-        for (int i = 1; i <= 6; i++) {
+        for (int i = 1; i <= 5; i++) {
             String dimensionKey = "dimension" + i;
             BigDecimal score = dimensionScores.get(dimensionKey);
             BigDecimal weight = dimensionWeights.get(dimensionKey);
