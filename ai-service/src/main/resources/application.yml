@@ -79,3 +79,11 @@ knife4j:
 logging:
   level:
     com.edu.platform.ai: DEBUG
+
+# Feign 超时配置
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 60000

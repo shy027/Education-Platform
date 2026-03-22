@@ -8,6 +8,7 @@ import com.alibaba.dashscope.aigc.generation.GenerationResult;
 import com.alibaba.fastjson2.JSON;
 import com.edu.platform.ai.client.CourseClient;
 import com.edu.platform.ai.client.ResourceClient;
+import com.edu.platform.common.result.PageResult;
 import com.edu.platform.ai.dto.response.AiCourseAnalysisResponse;
 import com.edu.platform.ai.dto.response.AiRecommendationResponse;
 import com.edu.platform.ai.service.AiService;
@@ -123,8 +124,8 @@ public class AiServiceImpl implements AiService {
                 throw new RuntimeException("文档内容为空，无法分析建议");
             }
             
-            // 2. 获取候选资源库
-            List<ResourceClient.ResourceDTO> resources = fetchCandidateResources();
+            // 2. 获取候选资源库 (文档推荐暂时不带分类/关键字，抓取较多样本)
+            List<ResourceClient.ResourceDTO> resources = fetchCandidateResources(null, null);
             
             // 3. 执行推荐
             String courseContext = "课程参考文档内容摘要：\n" + (content.length() > 5000 ? content.substring(0, 5000) : content);
@@ -150,14 +151,56 @@ public class AiServiceImpl implements AiService {
             }
             CourseClient.CourseDetailDTO course = courseResult.getData();
 
-            // 2. 获取候选资源库
-            List<ResourceClient.ResourceDTO> resources = fetchCandidateResources();
+            // 2. 获取候选资源库 (综合使用 课程名 + 学科领域 + 核心关键词)
+            StringBuilder sb = new StringBuilder();
+            if (course.getCourseName() != null && !course.getCourseName().isEmpty()) {
+                sb.append(course.getCourseName()).append(" ");
+            }
+            if (course.getSubjectArea() != null && !course.getSubjectArea().isEmpty()) {
+                sb.append(course.getSubjectArea()).append(" ");
+            }
+            if (course.getKeywords() != null && !course.getKeywords().isEmpty()) {
+                // 提取前3个关键词作为检索词，增加命中概率
+                String[] kwArray = course.getKeywords().split("[,，\\s]+");
+                for (int i = 0; i < Math.min(3, kwArray.length); i++) {
+                    if (kwArray[i] != null && !kwArray[i].isEmpty()) {
+                        sb.append(kwArray[i]).append(" ");
+                    }
+                }
+            }
+            
+            String searchKeyword = sb.toString().trim();
+            log.info("AI 推荐检索关键词串: [{}]", searchKeyword);
+            
+            List<ResourceClient.ResourceDTO> resources = fetchCandidateResources(searchKeyword, null);
+            log.info("第一轮检索(关键词:[{}]) 召回资源数: {}", searchKeyword, resources.size());
+            
+            // 如果多重检索依然没搜到，再尝试降低精度仅按学科抓取一遍
+            if (resources.isEmpty() && course.getSubjectArea() != null) {
+                resources = fetchCandidateResources(course.getSubjectArea(), null);
+                log.info("第二轮检索(学科领域:[{}]) 召回资源数: {}", course.getSubjectArea(), resources.size());
+            }
+            
+            // 如果最后还是没搜到，最后抓取最新的一批全量
+            if (resources.isEmpty()) {
+                resources = fetchCandidateResources(null, null);
+                log.info("第三轮检索(全量兜底) 召回资源数: {}", resources.size());
+            }
+            
+            if (resources.isEmpty()) {
+                log.warn("最终未获取到任何候选资源，推荐终止。");
+                AiRecommendationResponse emptyResponse = new AiRecommendationResponse();
+                emptyResponse.setRecommendations(new java.util.ArrayList<>());
+                return emptyResponse;
+            }
 
             // 3. 执行推荐
             StringBuilder courseContext = new StringBuilder();
             courseContext.append("课程名称：").append(course.getCourseName() != null ? course.getCourseName() : "未命名").append("\n");
             courseContext.append("课程简介：").append(course.getCourseIntro() != null ? course.getCourseIntro() : "暂无").append("\n");
             courseContext.append("学科领域：").append(course.getSubjectArea() != null ? course.getSubjectArea() : "通用").append("\n");
+            courseContext.append("核心关键词：").append(course.getKeywords() != null ? course.getKeywords() : "暂无").append("\n");
+            courseContext.append("建议对齐的素养维度：").append(course.getSuggestedDimensions() != null ? course.getSuggestedDimensions() : "暂无").append("\n");
             
             return doRecommend(courseContext.toString(), resources);
 
@@ -172,8 +215,12 @@ public class AiServiceImpl implements AiService {
      */
     private AiRecommendationResponse doRecommend(String courseContext, List<ResourceClient.ResourceDTO> resources) throws Exception {
         // 构造 Prompt
-        String systemPrompt = "你是一位课程资源匹配专家。根据课程信息/大纲内容从候选资源列表中选出最相关的 5-10 个资源。" +
-                "严格按 JSON 格式输出数组，不输出其他内容。\n" +
+        String systemPrompt = "你是一位专业的教学资源匹配专家。你的任务是根据课程的背景信息（包括名称、介绍、学科领域、素养要求及关键词），从候选资源列表中选出最相关的 5-10 个资源。\n\n" +
+                "匹配逻辑要求：\n" +
+                "1. 学科优先：如果定义了学科领域（如：电子信息与计算机），请匹配该学科及其下属细分学科（如：软件工程、网络工程、人工智能等）的资源。\n" +
+                "2. 素养对齐：如果课程没有明确学科（显示为“通用”），或者学科匹配度有限，请重点根据“素养维度”（如社会责任、创新实践等）来寻找在价值观和能力培养上高度契合的资源。\n" +
+                "3. 综合判断：结合课程简介和关键词，确保推荐的资源对教师备课或学生学习有实际帮助。\n\n" +
+                "输出要求：严格按 JSON 格式输出数组，不输出任何解释性文字。\n" +
                 "输出格式示例：[{\"resourceId\":1, \"reason\":\"推荐理由\", \"matchScore\":0.95}]";
 
         StringBuilder userPrompt = new StringBuilder();
@@ -202,6 +249,7 @@ public class AiServiceImpl implements AiService {
 
         GenerationResult result = gen.call(param);
         String jsonOutput = result.getOutput().getChoices().get(0).getMessage().getContent();
+        log.info("AI 推荐原始输出: {}", jsonOutput);
         jsonOutput = cleanJsonOutput(jsonOutput);
 
         // 解析并合并标题
@@ -220,16 +268,19 @@ public class AiServiceImpl implements AiService {
         return response;
     }
 
-    private List<ResourceClient.ResourceDTO> fetchCandidateResources() {
-        Result<com.baomidou.mybatisplus.extension.plugins.pagination.Page<ResourceClient.ResourceDTO>> resourceResult = 
-                resourceClient.pageResources(2, 1, 50); // 获取前 50 条已发布资源
+    private List<ResourceClient.ResourceDTO> fetchCandidateResources(String keyword, Long categoryId) {
+        Result<PageResult<ResourceClient.ResourceDTO>> resourceResult = 
+                resourceClient.pageResources(2, 1, 100, keyword, categoryId); // 扩大搜索范围至 100
         if (!resourceResult.isSuccess()) {
-            throw new RuntimeException("获取资源库失败: " + resourceResult.getMessage());
+            log.error("获取资源库失败: {}", resourceResult.getMessage());
+            return new java.util.ArrayList<>();
         }
-        if (resourceResult.getData() == null) {
-            throw new RuntimeException("资源库数据为空");
+        if (resourceResult.getData() == null || resourceResult.getData().getList() == null) {
+            log.warn("资源库返回数据为空, keyword=[{}]", keyword);
+            return new java.util.ArrayList<>();
         }
-        return resourceResult.getData().getRecords();
+        log.info("从资源库获取到 {} 条记录, keyword=[{}]", resourceResult.getData().getList().size(), keyword);
+        return resourceResult.getData().getList();
     }
 
     /**

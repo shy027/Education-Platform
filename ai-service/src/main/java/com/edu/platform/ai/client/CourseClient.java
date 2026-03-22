@@ -19,5 +19,7 @@ public interface CourseClient {
         private String courseName;
         private String courseIntro;
         private String subjectArea;
+        private String suggestedDimensions;
+        private String keywords;
     }
 }

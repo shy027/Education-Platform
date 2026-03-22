@@ -1,6 +1,6 @@
 package com.edu.platform.ai.client;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
 import lombok.Data;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -13,10 +13,12 @@ import java.util.List;
 public interface ResourceClient {
 
     @GetMapping("/api/v1/resources")
-    Result<Page<ResourceDTO>> pageResources(
+    Result<PageResult<ResourceDTO>> pageResources(
             @RequestParam(value = "status", defaultValue = "2") Integer status,
             @RequestParam(value = "pageNum", defaultValue = "1") Integer pageNum,
-            @RequestParam(value = "pageSize", defaultValue = "50") Integer pageSize);
+            @RequestParam(value = "pageSize", defaultValue = "50") Integer pageSize,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "categoryId", required = false) Long categoryId);
 
     @Data
     class ResourceDTO {

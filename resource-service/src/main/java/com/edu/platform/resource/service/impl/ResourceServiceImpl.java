@@ -282,14 +282,30 @@ public class ResourceServiceImpl implements ResourceService {
         
         LambdaQueryWrapper<Resource> wrapper = new LambdaQueryWrapper<>();
         
-        // 关键词搜索
+        // 关键词搜索 (支持空格分词，匹配标题、摘要及分类名)
         if (StrUtil.isNotBlank(request.getKeyword())) {
-            wrapper.like(Resource::getTitle, request.getKeyword());
+            String[] keywords = request.getKeyword().split("\\s+");
+            wrapper.and(w -> {
+                for (int i = 0; i < keywords.length; i++) {
+                    String kw = keywords[i];
+                    if (i == 0) {
+                        w.like(Resource::getTitle, kw)
+                         .or().like(Resource::getSummary, kw)
+                         .or().inSql(Resource::getCategoryId, "SELECT id FROM resource_category WHERE category_name LIKE '%" + kw + "%'");
+                    } else {
+                        w.or().like(Resource::getTitle, kw)
+                         .or().like(Resource::getSummary, kw)
+                         .or().inSql(Resource::getCategoryId, "SELECT id FROM resource_category WHERE category_name LIKE '%" + kw + "%'");
+                    }
+                }
+            });
         }
         
-        // 分类筛选
+        // 分类筛选 (支持层级穿透)
         if (request.getCategoryId() != null) {
-            wrapper.eq(Resource::getCategoryId, request.getCategoryId());
+            List<Long> categoryIds = getDescendantCategoryIds(request.getCategoryId());
+            categoryIds.add(request.getCategoryId());
+            wrapper.in(Resource::getCategoryId, categoryIds);
         }
 
         // 类型筛选
@@ -588,5 +604,21 @@ public class ResourceServiceImpl implements ResourceService {
         return resources.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 递归获取所有下级分类ID
+     */
+    private List<Long> getDescendantCategoryIds(Long parentId) {
+        List<Long> result = new ArrayList<>();
+        LambdaQueryWrapper<ResourceCategory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ResourceCategory::getParentId, parentId);
+        List<ResourceCategory> children = categoryMapper.selectList(wrapper);
+        
+        for (ResourceCategory child : children) {
+            result.add(child.getId());
+            result.addAll(getDescendantCategoryIds(child.getId()));
+        }
+        return result;
     }
 }

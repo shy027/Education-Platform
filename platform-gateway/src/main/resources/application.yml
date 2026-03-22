@@ -18,6 +18,11 @@ spring:
       discovery:
         locator:
           enabled: false  # 不使用自动路由，手动配置
+      
+      # 全局超时配置
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 60s
 
       # 全局默认过滤器
       default-filters:
