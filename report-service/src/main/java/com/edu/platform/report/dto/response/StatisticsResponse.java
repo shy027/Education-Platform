@@ -57,6 +57,9 @@ public class StatisticsResponse {
         @Schema(description = "行为次数")
         private Integer count;
         
+        @Schema(description = "去重后的行为次数")
+        private Integer uniqueCount;
+        
         @Schema(description = "总时长(秒)")
         private Integer totalDuration;
         
@@ -88,6 +91,9 @@ public class StatisticsResponse {
         
         @Schema(description = "日均行为次数")
         private Double avgDailyBehaviors;
+
+        @Schema(description = "参与课程数量")
+        private Integer participatedCourses;
         
         @Schema(description = "最活跃时段")
         private Integer mostActiveHour;

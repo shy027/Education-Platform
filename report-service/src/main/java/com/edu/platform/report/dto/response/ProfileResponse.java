@@ -42,6 +42,9 @@ public class ProfileResponse {
     
     @Schema(description = "素养等级(优秀/良好/合格/待提升)")
     private String profileLevel;
+
+    @Schema(description = "等级别名(优秀/良好/合格/待提升)")
+    private String level;
     
     @Schema(description = "成长趋势(上升/稳定/下降)")
     private String growthTrend;

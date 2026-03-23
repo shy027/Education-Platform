@@ -225,6 +225,7 @@ public class ProfileServiceImpl implements ProfileService {
         result.put("dimension5Score", profile.getDimension5Score());
         result.put("totalScore", profile.getTotalScore());
         result.put("profileLevel", profile.getLevel());
+        result.put("level", profile.getLevel());
         result.put("growthTrend", profile.getGrowthTrend());
         result.put("updatedTime", profile.getUpdatedTime());
         
@@ -408,8 +409,29 @@ public class ProfileServiceImpl implements ProfileService {
             StatisticsResponse.BehaviorStat stat = new StatisticsResponse.BehaviorStat();
             stat.setCount(logs.size());
             
+            // 计算去重后的行为次数 (针对同一个研讨/作业)
+            long uniqueCount = logs.stream()
+                .map(log -> {
+                    // 对于讨论话题，如果 behaviorData 中有 postId，则按 postId 去重（同一话题下的发帖和回复算一次）
+                    if ("POST_COMMENT".equals(log.getBehaviorType()) && log.getBehaviorData() != null) {
+                        try {
+                            cn.hutool.json.JSONObject data = cn.hutool.json.JSONUtil.parseObj(log.getBehaviorData());
+                            if (Boolean.FALSE.equals(data.getBool("isPost")) && data.containsKey("postId")) {
+                                return data.getLong("postId");
+                            }
+                        } catch (Exception e) {
+                            // 忽略解析错误，回退到 behaviorObjectId
+                        }
+                    }
+                    return log.getBehaviorObjectId();
+                })
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .count();
+            stat.setUniqueCount((int) uniqueCount);
+            
             // 根据行为类型计算不同的统计数据
-            if ("VIEW_COURSEWARE".equals(behaviorType) || "VIEW_CASE".equals(behaviorType)) {
+            if ("VIEW_COURSEWARE".equals(behaviorType) || "VIEW_CASE".equals(behaviorType) || "WATCH_VIDEO".equals(behaviorType)) {
                 int totalDuration = logs.stream()
                     .filter(log -> log.getDurationSeconds() != null)
                     .mapToInt(BehaviorLog::getDurationSeconds)
@@ -431,6 +453,14 @@ public class ProfileServiceImpl implements ProfileService {
             .distinct()
             .count();
         summary.setActiveDays((int) activeDays);
+
+        // 计算参与课程数量
+        long participatedCourses = behaviorLogs.stream()
+            .map(BehaviorLog::getCourseId)
+            .filter(id -> id != null && id != 0)
+            .distinct()
+            .count();
+        summary.setParticipatedCourses((int) participatedCourses);
         
         // 计算日均行为次数
         if (activeDays > 0) {
