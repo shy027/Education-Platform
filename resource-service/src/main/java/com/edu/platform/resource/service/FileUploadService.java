@@ -33,5 +33,13 @@ public interface FileUploadService {
      * @return 上传结果
      */
     AttachmentUploadResponse uploadPdf(MultipartFile file);
+
+    /**
+     * PDF流代理预览
+     *
+     * @param fileUrl  原始文件URL
+     * @param response HTTP响应对象
+     */
+    void proxyPdf(String fileUrl, jakarta.servlet.http.HttpServletResponse response);
     
 }

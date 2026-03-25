@@ -5,11 +5,9 @@ import com.edu.platform.resource.dto.response.AttachmentUploadResponse;
 import com.edu.platform.resource.service.FileUploadService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -41,6 +39,12 @@ public class FileUploadController {
     @PostMapping(value = "/pdf", consumes = "multipart/form-data")
     public Result<AttachmentUploadResponse> uploadPdf(@RequestParam("file") MultipartFile file) {
         return Result.success(fileUploadService.uploadPdf(file));
+    }
+
+    @Operation(summary = "PDF流代理预览")
+    @GetMapping("/pdf-proxy")
+    public void proxyPdf(@RequestParam String fileUrl, HttpServletResponse response) {
+        fileUploadService.proxyPdf(fileUrl, response);
     }
     
 }

@@ -3,6 +3,8 @@ package com.edu.platform.resource.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import com.aliyun.oss.OSS;
+import com.aliyun.oss.model.GetObjectRequest;
+import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.coremedia.iso.IsoFile;
 import com.coremedia.iso.boxes.MovieBox;
@@ -12,16 +14,15 @@ import com.edu.platform.common.result.ResultCode;
 import com.edu.platform.resource.config.AliyunOssProperties;
 import com.edu.platform.resource.dto.response.AttachmentUploadResponse;
 import com.edu.platform.resource.service.FileUploadService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 
@@ -190,6 +191,45 @@ public class FileUploadServiceImpl implements FileUploadService {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "文件无扩展名");
         }
         return filename.substring(lastDotIndex + 1).toLowerCase();
+    }
+
+    @Override
+    public void proxyPdf(String fileUrl, HttpServletResponse response) {
+        if (StrUtil.isBlank(fileUrl) || !fileUrl.toLowerCase().contains(".pdf")) {
+            throw new BusinessException("非合法的PDF预览请求");
+        }
+        
+        try {
+            // 解析 ObjectName (从 URL 提取路径部分)
+            URL url = new URL(fileUrl);
+            String path = url.getPath();
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            
+            log.info("开始代理预览PDF: bucket={}, objectName={}", ossProperties.getBucketName(), path);
+            
+            OSSObject ossObject = ossClient.getObject(new GetObjectRequest(ossProperties.getBucketName(), path));
+            if (ossObject == null) {
+                throw new BusinessException("文件不存在");
+            }
+
+            response.setContentType("application/pdf");
+            response.setHeader("Content-Disposition", "inline; filename=" + IdUtil.simpleUUID() + ".pdf");
+            
+            try (InputStream is = ossObject.getObjectContent();
+                 OutputStream os = response.getOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int len;
+                while ((len = is.read(buffer)) != -1) {
+                    os.write(buffer, 0, len);
+                }
+                os.flush();
+            }
+        } catch (Exception e) {
+            log.error("PDF代理预览失败: " + fileUrl, e);
+            throw new BusinessException("无法加载该PDF文件进度预览");
+        }
     }
     
 }
