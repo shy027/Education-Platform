@@ -13,6 +13,14 @@ public interface CourseClient {
     @GetMapping("/api/v1/courses/{id}")
     Result<CourseDetailDTO> getCourseDetail(@PathVariable("id") Long id);
 
+    @GetMapping("/api/v1/courses/{courseId}/coursewares")
+    Result<com.edu.platform.common.result.PageResult<CoursewareResponse>> getCoursewareList(
+            @PathVariable("courseId") Long courseId,
+            @org.springframework.web.bind.annotation.RequestParam(value = "chapterId", required = false) Long chapterId,
+            @org.springframework.web.bind.annotation.RequestParam(value = "wareType", required = false) Integer wareType,
+            @org.springframework.web.bind.annotation.RequestParam(value = "pageSize", defaultValue = "100") Integer pageSize
+    );
+
     @Data
     class CourseDetailDTO {
         private Long id;
@@ -21,5 +29,13 @@ public interface CourseClient {
         private String subjectArea;
         private String suggestedDimensions;
         private String keywords;
+    }
+
+    @Data
+    class CoursewareResponse {
+        private Long id;
+        private String wareTitle;
+        private Integer wareType;
+        private String fileUrl;
     }
 }

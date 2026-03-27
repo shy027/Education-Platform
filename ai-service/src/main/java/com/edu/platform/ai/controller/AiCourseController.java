@@ -30,8 +30,10 @@ public class AiCourseController {
 
     @Operation(summary = "获取 AI 资源推荐")
     @GetMapping("/{courseId}/recommend-resources")
-    public Result<AiRecommendationResponse> recommendResources(@PathVariable Long courseId) {
-        AiRecommendationResponse response = aiService.recommendResources(courseId);
+    public Result<AiRecommendationResponse> recommendResources(
+            @PathVariable Long courseId,
+            @RequestParam(required = false) Long chapterId) {
+        AiRecommendationResponse response = aiService.recommendResources(courseId, chapterId);
         return Result.success(response);
     }
 

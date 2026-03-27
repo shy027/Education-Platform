@@ -20,7 +20,7 @@ public interface AiService {
     AiRecommendationResponse recommendResourcesByDocument(MultipartFile file);
 
     /**
-     * 基于数据库中现有课程详情推荐资源
+     * 基于数据库中现有课程或指定章节的课件推荐资源
      */
-    AiRecommendationResponse recommendResources(Long courseId);
+    AiRecommendationResponse recommendResources(Long courseId, Long chapterId);
 }

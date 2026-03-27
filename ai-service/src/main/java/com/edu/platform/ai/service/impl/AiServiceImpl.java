@@ -138,75 +138,95 @@ public class AiServiceImpl implements AiService {
     }
 
     @Override
-    public AiRecommendationResponse recommendResources(Long courseId) {
+    public AiRecommendationResponse recommendResources(Long courseId, Long chapterId) {
         try {
-            // 1. 获取课程详情
+            // 1. 获取课程详情 (作为基础背景)
             Result<CourseClient.CourseDetailDTO> courseResult = courseClient.getCourseDetail(courseId);
-            if (!courseResult.isSuccess()) {
-                log.error("获取课程信息失败，错误码：{}，原因：{}", courseResult.getCode(), courseResult.getMessage());
-                throw new RuntimeException("获取课程信息失败: " + courseResult.getMessage());
-            }
-            if (courseResult.getData() == null) {
-                throw new RuntimeException("课程数据为空");
+            if (!courseResult.isSuccess() || courseResult.getData() == null) {
+                log.error("获取课程信息失败: {}", courseResult.getMessage());
+                throw new RuntimeException("获取课程信息失败");
             }
             CourseClient.CourseDetailDTO course = courseResult.getData();
 
-            // 2. 获取候选资源库 (综合使用 课程名 + 学科领域 + 核心关键词)
-            StringBuilder sb = new StringBuilder();
-            if (course.getCourseName() != null && !course.getCourseName().isEmpty()) {
-                sb.append(course.getCourseName()).append(" ");
-            }
-            if (course.getSubjectArea() != null && !course.getSubjectArea().isEmpty()) {
-                sb.append(course.getSubjectArea()).append(" ");
-            }
-            if (course.getKeywords() != null && !course.getKeywords().isEmpty()) {
-                // 提取前3个关键词作为检索词，增加命中概率
-                String[] kwArray = course.getKeywords().split("[,，\\s]+");
-                for (int i = 0; i < Math.min(3, kwArray.length); i++) {
-                    if (kwArray[i] != null && !kwArray[i].isEmpty()) {
-                        sb.append(kwArray[i]).append(" ");
+            StringBuilder contextBuilder = new StringBuilder();
+            String searchKeyword = course.getCourseName();
+
+            // 2. 如果指定了章节，尝试获取章节课件内容作为深度语义背景
+            if (chapterId != null) {
+                Result<PageResult<CourseClient.CoursewareResponse>> wareResult = 
+                        courseClient.getCoursewareList(courseId, chapterId, null, 100);
+                
+                if (wareResult.isSuccess() && wareResult.getData() != null) {
+                    List<CourseClient.CoursewareResponse> chapterWares = wareResult.getData().getList();
+                    if (chapterWares != null && !chapterWares.isEmpty()) {
+                        // 过滤出 PDF(2) 和 PPT(3) 类型的课件进行内容深度解析
+                        List<CourseClient.CoursewareResponse> relevantWares = chapterWares.stream()
+                                .filter(w -> w.getWareType() == 2 || w.getWareType() == 3)
+                                .limit(2)
+                                .collect(Collectors.toList());
+
+                        if (!relevantWares.isEmpty()) {
+                            for (CourseClient.CoursewareResponse ware : relevantWares) {
+                                String content = safeParseUrl(ware.getFileUrl());
+                                if (content != null && !content.trim().isEmpty()) {
+                                    contextBuilder.append("课件【").append(ware.getWareTitle()).append("】核心内容解析：\n");
+                                    contextBuilder.append(content.length() > 3000 ? content.substring(0, 3000) : content).append("\n\n");
+                                } else {
+                                    contextBuilder.append("课件【").append(ware.getWareTitle()).append("】(仅标题)：").append(ware.getWareTitle()).append("\n");
+                                }
+                            }
+                            searchKeyword = relevantWares.get(0).getWareTitle();
+                        } else {
+                            log.info("该章节无 PDF/PPT 课件，回退至课程级推荐。章节ID: {}", chapterId);
+                        }
+                    } else {
+                        log.info("该章节无课件数据，将回退至课程级推荐。章节ID: {}", chapterId);
                     }
                 }
             }
-            
-            String searchKeyword = sb.toString().trim();
-            log.info("AI 推荐检索关键词串: [{}]", searchKeyword);
-            
+
+            // 3. 获取候选资源库 (优先使用检索词召回)
             List<ResourceClient.ResourceDTO> resources = fetchCandidateResources(searchKeyword, null);
-            log.info("第一轮检索(关键词:[{}]) 召回资源数: {}", searchKeyword, resources.size());
-            
-            // 如果多重检索依然没搜到，再尝试降低精度仅按学科抓取一遍
             if (resources.isEmpty() && course.getSubjectArea() != null) {
                 resources = fetchCandidateResources(course.getSubjectArea(), null);
-                log.info("第二轮检索(学科领域:[{}]) 召回资源数: {}", course.getSubjectArea(), resources.size());
             }
-            
-            // 如果最后还是没搜到，最后抓取最新的一批全量
             if (resources.isEmpty()) {
                 resources = fetchCandidateResources(null, null);
-                log.info("第三轮检索(全量兜底) 召回资源数: {}", resources.size());
             }
-            
+
             if (resources.isEmpty()) {
-                log.warn("最终未获取到任何候选资源，推荐终止。");
                 AiRecommendationResponse emptyResponse = new AiRecommendationResponse();
                 emptyResponse.setRecommendations(new java.util.ArrayList<>());
                 return emptyResponse;
             }
 
-            // 3. 执行推荐
+            // 4. 构造 Prompt 执行 AI 语义匹配
             StringBuilder courseContext = new StringBuilder();
-            courseContext.append("课程名称：").append(course.getCourseName() != null ? course.getCourseName() : "未命名").append("\n");
+            courseContext.append("课程名称：").append(course.getCourseName()).append("\n");
             courseContext.append("课程简介：").append(course.getCourseIntro() != null ? course.getCourseIntro() : "暂无").append("\n");
+            if (contextBuilder.length() > 0) {
+                courseContext.append("学习情境与课件内容：\n").append(contextBuilder.toString());
+            }
             courseContext.append("学科领域：").append(course.getSubjectArea() != null ? course.getSubjectArea() : "通用").append("\n");
-            courseContext.append("核心关键词：").append(course.getKeywords() != null ? course.getKeywords() : "暂无").append("\n");
-            courseContext.append("建议对齐的素养维度：").append(course.getSuggestedDimensions() != null ? course.getSuggestedDimensions() : "暂无").append("\n");
             
             return doRecommend(courseContext.toString(), resources);
 
         } catch (Exception e) {
             log.error("AI 资源推荐失败: {}", e.getMessage());
             throw new RuntimeException("推荐失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 安全地解析远程 URL 文档内容
+     */
+    private String safeParseUrl(String fileUrl) {
+        if (fileUrl == null || !fileUrl.startsWith("http")) return null;
+        try (java.io.InputStream is = new java.net.URL(fileUrl).openStream()) {
+            return tika.parseToString(is);
+        } catch (Exception e) {
+            log.warn("解析远端文档失败: {}, URL: {}", e.getMessage(), fileUrl);
+            return null;
         }
     }
 
