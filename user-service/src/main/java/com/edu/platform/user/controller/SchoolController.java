@@ -4,8 +4,10 @@ import com.edu.platform.common.constant.Constants;
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
 import com.edu.platform.user.dto.request.JoinSchoolRequest;
+import com.edu.platform.user.dto.request.SchoolRequest;
 import com.edu.platform.user.dto.response.SchoolResponse;
 import com.edu.platform.user.service.SchoolService;
+import com.edu.platform.common.annotation.RequireAdminOrLeader;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -56,5 +58,28 @@ public class SchoolController {
         SchoolResponse response = schoolService.getSchoolDetail(schoolId);
         return Result.success(response);
     }
-    
+
+    @Operation(summary = "创建学校")
+    @PostMapping
+    @RequireAdminOrLeader
+    public Result<Void> createSchool(@Valid @RequestBody SchoolRequest request) {
+        schoolService.createSchool(request);
+        return Result.success("创建成功", null);
+    }
+
+    @Operation(summary = "更新学校")
+    @PutMapping("/{id}")
+    @RequireAdminOrLeader
+    public Result<Void> updateSchool(@PathVariable Long id, @Valid @RequestBody SchoolRequest request) {
+        schoolService.updateSchool(id, request);
+        return Result.success("更新成功", null);
+    }
+
+    @Operation(summary = "删除学校")
+    @DeleteMapping("/{id}")
+    @RequireAdminOrLeader
+    public Result<Void> deleteSchool(@PathVariable Long id) {
+        schoolService.deleteSchool(id);
+        return Result.success("删除成功", null);
+    }
 }

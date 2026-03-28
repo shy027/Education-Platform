@@ -8,6 +8,7 @@ import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.ResultCode;
 import com.edu.platform.user.dto.request.JoinSchoolRequest;
+import com.edu.platform.user.dto.request.SchoolRequest;
 import com.edu.platform.user.dto.response.SchoolResponse;
 import com.edu.platform.user.entity.UserSchool;
 import com.edu.platform.user.entity.UserSchoolMember;
@@ -143,7 +144,7 @@ public class SchoolServiceImpl implements SchoolService {
      */
     private SchoolResponse convertToResponse(UserSchool school) {
         SchoolResponse response = new SchoolResponse();
-        response.setSchoolId(school.getId());
+        response.setId(school.getId());
         response.setSchoolCode(school.getSchoolCode());
         response.setSchoolName(school.getSchoolName());
         response.setProvince(school.getProvince());
@@ -153,5 +154,58 @@ public class SchoolServiceImpl implements SchoolService {
         response.setDescription(school.getDescription());
         return response;
     }
-    
+
+    @Override
+    public Long getSchoolCount() {
+        return userSchoolMapper.selectCount(new LambdaQueryWrapper<UserSchool>()
+                .eq(UserSchool::getStatus, 1));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void createSchool(SchoolRequest request) {
+        UserSchool school = new UserSchool();
+        school.setSchoolName(request.getSchoolName());
+        school.setProvince(request.getProvince());
+        school.setCity(request.getCity());
+        school.setAddress(request.getAddress());
+        school.setContactPhone(request.getContactPhone());
+        school.setStatus(1);
+        school.setCreatedTime(LocalDateTime.now());
+        school.setUpdatedTime(LocalDateTime.now());
+        
+        // 简单生成一个学校编码
+        school.setSchoolCode("SC" + System.currentTimeMillis() % 1000000);
+        
+        userSchoolMapper.insert(school);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateSchool(Long id, SchoolRequest request) {
+        UserSchool school = userSchoolMapper.selectById(id);
+        if (school == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "学校不存在");
+        }
+        
+        school.setSchoolName(request.getSchoolName());
+        school.setProvince(request.getProvince());
+        school.setCity(request.getCity());
+        school.setAddress(request.getAddress());
+        school.setContactPhone(request.getContactPhone());
+        school.setUpdatedTime(LocalDateTime.now());
+        
+        userSchoolMapper.updateById(school);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteSchool(Long id) {
+        UserSchool school = userSchoolMapper.selectById(id);
+        if (school != null) {
+            school.setStatus(0); // 逻辑删除
+            school.setUpdatedTime(LocalDateTime.now());
+            userSchoolMapper.updateById(school);
+        }
+    }
 }

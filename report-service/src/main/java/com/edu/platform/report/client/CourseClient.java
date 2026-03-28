@@ -17,4 +17,10 @@ public interface CourseClient {
      */
     @GetMapping("/{id}")
     Result<CourseScoringDTO> getCourseDetail(@PathVariable("id") Long id);
+
+    /**
+     * 获取课程看板统计数据
+     */
+    @GetMapping("/stats")
+    Result<java.util.Map<String, Object>> getStats();
 }

@@ -11,9 +11,9 @@ import lombok.Data;
 public class SchoolResponse {
     
     /**
-     * 学校ID
+     * 学校ID (与前端 id 字段匹配)
      */
-    private Long schoolId;
+    private Long id;
     
     /**
      * 学校编码

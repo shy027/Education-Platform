@@ -38,7 +38,8 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/v3/api-docs",
                     "/v3/api-docs/**",
-                    "/webjars/**"
+                    "/webjars/**",
+                    "/internal/**"
                 ).permitAll()
 
                 // 内部接口（Feign 服务间调用）放行

@@ -50,4 +50,10 @@ public interface UserManageService {
      * @return 用户信息Map，key为userId
      */
     java.util.Map<Long, UserManageResponse> batchGetUserInfo(java.util.List<Long> userIds);
+
+    /**
+     * 获取用户统计信息
+     * @return 统计数据MAP
+     */
+    java.util.Map<String, Object> getUserStats();
 }

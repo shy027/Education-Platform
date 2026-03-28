@@ -606,6 +606,43 @@ public class ResourceServiceImpl implements ResourceService {
                 .collect(Collectors.toList());
     }
 
+
+    @Override
+    public java.util.Map<String, Object> getResourceStats() {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        
+        // 总资源数 (已发布)
+        Long totalResources = resourceMapper.selectCount(new LambdaQueryWrapper<Resource>()
+                .eq(Resource::getStatus, 2));
+        stats.put("totalResources", totalResources);
+        
+        // 资源类型分布
+        List<Resource> allResources = resourceMapper.selectList(new LambdaQueryWrapper<Resource>()
+                .select(Resource::getResourceType)
+                .isNotNull(Resource::getResourceType));
+        
+        java.util.Map<Integer, Long> distribution = allResources.stream()
+                .collect(Collectors.groupingBy(Resource::getResourceType, Collectors.counting()));
+        
+        // 转换为更友好的名称 (这里假设 1:文章, 2:视频, 3:文档, 4:音频)
+        java.util.Map<String, Long> namedDistribution = new java.util.HashMap<>();
+        distribution.forEach((type, count) -> {
+            String name;
+            switch (type) {
+                case 1: name = "文章"; break;
+                case 2: name = "视频"; break;
+                case 3: name = "文档"; break;
+                case 4: name = "音频"; break;
+                default: name = "其他";
+            }
+            namedDistribution.put(name, count);
+        });
+        
+        stats.put("typeDistribution", namedDistribution);
+        
+        return stats;
+    }
+
     /**
      * 递归获取所有下级分类ID
      */
@@ -615,9 +652,11 @@ public class ResourceServiceImpl implements ResourceService {
         wrapper.eq(ResourceCategory::getParentId, parentId);
         List<ResourceCategory> children = categoryMapper.selectList(wrapper);
         
-        for (ResourceCategory child : children) {
-            result.add(child.getId());
-            result.addAll(getDescendantCategoryIds(child.getId()));
+        if (children != null) {
+            for (ResourceCategory child : children) {
+                result.add(child.getId());
+                result.addAll(getDescendantCategoryIds(child.getId()));
+            }
         }
         return result;
     }

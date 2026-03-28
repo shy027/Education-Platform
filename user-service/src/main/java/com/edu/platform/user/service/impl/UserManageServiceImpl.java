@@ -142,7 +142,7 @@ public class UserManageServiceImpl implements UserManageService {
      */
     private UserManageResponse convertToResponse(UserAccount user) {
         UserManageResponse response = new UserManageResponse();
-        response.setId(user.getId());
+        response.setUserId(user.getId());
         response.setUsername(user.getUsername());
         response.setRealName(user.getRealName());
         response.setEmail(user.getEmail());
@@ -203,7 +203,24 @@ public class UserManageServiceImpl implements UserManageService {
         // 转换为Map
         return users.stream()
                 .map(this::convertToResponse)
-                .collect(Collectors.toMap(UserManageResponse::getId, user -> user));
+                .collect(Collectors.toMap(UserManageResponse::getUserId, user -> user));
+    }
+
+    @Override
+    public java.util.Map<String, Object> getUserStats() {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        
+        // 总用户数
+        Long totalUsers = userAccountMapper.selectCount(new LambdaQueryWrapper<>());
+        stats.put("totalUsers", totalUsers);
+        
+        // 今日增长
+        java.time.LocalDateTime todayStart = java.time.LocalDateTime.now().with(java.time.LocalTime.MIN);
+        Long todayGrowth = userAccountMapper.selectCount(new LambdaQueryWrapper<UserAccount>()
+                .ge(UserAccount::getCreatedTime, todayStart));
+        stats.put("todayGrowth", todayGrowth);
+        
+        return stats;
     }
     
 }

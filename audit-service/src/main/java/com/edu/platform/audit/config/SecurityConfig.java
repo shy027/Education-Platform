@@ -38,7 +38,8 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/v3/api-docs",
                     "/v3/api-docs/**",
-                    "/webjars/**"
+                    "/webjars/**",
+                    "/internal/**"
                 ).permitAll()
                 
                 // 其他接口需要认证

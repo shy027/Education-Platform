@@ -444,4 +444,24 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
 
         this.removeById(id); // MyBatis Plus 开启了逻辑删除
     }
+
+    @Override
+    public java.util.Map<String, Object> getCourseStats() {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        
+        // 总课程数
+        Long totalCourses = this.count(new LambdaQueryWrapper<Course>()
+                .eq(Course::getAuditStatus, 1));
+        stats.put("totalCourses", totalCourses);
+        
+        // 补充数量统计 (MyBatis-Plus selectMaps 不支持直接聚合时，手动查询或使用自定义 SQL)
+        // 为简单起见，这里直接查询并分组计数
+        List<Course> allCourses = this.list(new LambdaQueryWrapper<Course>().select(Course::getSubjectArea).isNotNull(Course::getSubjectArea));
+        java.util.Map<String, Long> distribution = allCourses.stream()
+                .collect(Collectors.groupingBy(Course::getSubjectArea, Collectors.counting()));
+        
+        stats.put("subjectDistribution", distribution);
+        
+        return stats;
+    }
 }

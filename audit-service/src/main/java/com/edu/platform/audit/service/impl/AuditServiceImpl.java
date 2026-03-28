@@ -1,6 +1,5 @@
 package com.edu.platform.audit.service.impl;
 
-import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -329,9 +328,25 @@ public class AuditServiceImpl implements AuditService {
      * 截断文本
      */
     private String truncate(String text, int maxLength) {
-        if (text == null || text.length() <= maxLength) {
-            return text;
-        }
         return text.substring(0, maxLength) + "...";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getAuditStats() {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        
+        // 待审核总数
+        Long pendingCount = auditRecordMapper.selectCount(new LambdaQueryWrapper<AuditRecord>()
+                .eq(AuditRecord::getAuditResult, AuditResult.PENDING.getCode()));
+        stats.put("pendingAudits", pendingCount);
+        
+        // 已审核总数 (今日)
+        java.time.LocalDateTime todayStart = java.time.LocalDateTime.now().with(java.time.LocalTime.MIN);
+        Long processedToday = auditRecordMapper.selectCount(new LambdaQueryWrapper<AuditRecord>()
+                .ne(AuditRecord::getAuditResult, AuditResult.PENDING.getCode())
+                .ge(AuditRecord::getAuditTime, todayStart));
+        stats.put("processedToday", processedToday);
+        
+        return stats;
     }
 }

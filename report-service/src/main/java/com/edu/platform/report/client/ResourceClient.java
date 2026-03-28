@@ -3,6 +3,7 @@ package com.edu.platform.report.client;
 import com.edu.platform.common.result.Result;
 import com.edu.platform.report.dto.ResourceResponse;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -19,4 +20,10 @@ public interface ResourceClient {
      */
     @PostMapping("/batch")
     Result<List<ResourceResponse>> getResourcesByIds(@RequestBody List<Long> resourceIds);
+
+    /**
+     * 获取资源看板统计数据
+     */
+    @GetMapping("/stats")
+    Result<java.util.Map<String, Object>> getStats();
 }

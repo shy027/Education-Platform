@@ -339,6 +339,17 @@ public class ReportServiceImpl implements ReportService {
         ReportDTO dto = new ReportDTO();
         BeanUtils.copyProperties(report, dto);
         
+        // 设置状态: 根据是否有文件URL判定(简化逻辑: 有URL则已完成2, 否则生成中1)
+        dto.setStatus(report.getFileUrl() != null ? 2 : 1);
+
+        // 查询课程名称
+        if (report.getCourseId() != null) {
+            CourseInfo course = courseInfoMapper.selectById(report.getCourseId());
+            if (course != null) {
+                dto.setCourseName(course.getCourseName());
+            }
+        }
+
         // 查询生成人姓名
         if (report.getGeneratorId() != null) {
             UserAccount user = userAccountMapper.selectById(report.getGeneratorId());

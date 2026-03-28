@@ -16,7 +16,7 @@ public class UserManageResponse {
     /**
      * 用户ID
      */
-    private Long id;
+    private Long userId;
     
     /**
      * 用户名

@@ -37,7 +37,8 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/v3/api-docs",
                     "/v3/api-docs/**",
-                    "/webjars/**"
+                    "/webjars/**",
+                    "/internal/**"
                 ).permitAll()
                 
                 // 公开接口 - 获取所有启用标签

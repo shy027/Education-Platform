@@ -82,4 +82,10 @@ public interface CourseService extends IService<Course> {
      * @param id 课程ID
      */
     void deleteDraft(Long id);
+
+    /**
+     * 获取课程统计信息
+     * @return 统计数据MAP
+     */
+    java.util.Map<String, Object> getCourseStats();
 }

@@ -129,8 +129,13 @@ public interface ResourceService {
     /**
      * 根据 ID 批量获取资源响应(包含标签)
      *
-     * @param resourceIds 资源ID集合
      * @return 资源响应集合
      */
     List<ResourceResponse> listResponsesByIds(List<Long> resourceIds);
+
+    /**
+     * 获取资源统计信息
+     * @return 统计集
+     */
+    java.util.Map<String, Object> getResourceStats();
 }

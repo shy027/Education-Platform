@@ -21,6 +21,11 @@ public class ReportDTO {
      * 课程ID
      */
     private Long courseId;
+
+    /**
+     * 课程名称
+     */
+    private String courseName;
     
     /**
      * 报告标题
@@ -36,6 +41,11 @@ public class ReportDTO {
      * 报告类型(1=课程报告,2=学校报告)
      */
     private Integer reportType;
+
+    /**
+     * 状态(0=等待中, 1=生成中, 2=已完成, 3=失败)
+     */
+    private Integer status;
     
     /**
      * 生成人ID

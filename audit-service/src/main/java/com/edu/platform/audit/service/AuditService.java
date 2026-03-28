@@ -47,4 +47,10 @@ public interface AuditService {
      * @return 分页结果
      */
     PageResult<AuditRecordVO> getAuditRecords(AuditQueryRequest request);
+
+    /**
+     * 获取审核统计信息
+     * @return 统计集
+     */
+    java.util.Map<String, Object> getAuditStats();
 }
