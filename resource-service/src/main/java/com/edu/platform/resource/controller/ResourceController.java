@@ -86,6 +86,7 @@ public class ResourceController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) List<Integer> statusList,
             @RequestParam(required = false) Long creatorId,
             @RequestParam(required = false) Long tagId,
             @RequestParam(required = false) Integer resourceType,
@@ -97,6 +98,7 @@ public class ResourceController {
         request.setKeyword(keyword);
         request.setCategoryId(categoryId);
         request.setStatus(status);
+        request.setStatusList(statusList);
         request.setCreatorId(creatorId);
         request.setTagId(tagId);
         request.setResourceType(resourceType);

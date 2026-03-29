@@ -313,8 +313,10 @@ public class ResourceServiceImpl implements ResourceService {
             wrapper.eq(Resource::getResourceType, request.getResourceType());
         }
         
-        // 状态筛选
-        if (request.getStatus() != null) {
+        // 状态筛选 (优先使用 statusList)
+        if (request.getStatusList() != null && !request.getStatusList().isEmpty()) {
+            wrapper.in(Resource::getStatus, request.getStatusList());
+        } else if (request.getStatus() != null) {
             wrapper.eq(Resource::getStatus, request.getStatus());
         }
         

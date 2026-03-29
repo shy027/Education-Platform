@@ -26,7 +26,12 @@ public class ResourceQueryRequest {
     private Integer resourceType;
     
     /**
-     * 状态: 0-草稿, 1-待审核, 2-已发布, 3-已拒绝, 4-已下架
+     * 状态列表: 0-草稿, 1-待审核, 2-已发布, 3-已拒绝, 4-已下架
+     */
+    private java.util.List<Integer> statusList;
+
+    /**
+     * 单个状态 (兼容旧逻辑)
      */
     private Integer status;
     
