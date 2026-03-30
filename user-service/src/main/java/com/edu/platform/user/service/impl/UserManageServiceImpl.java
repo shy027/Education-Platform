@@ -13,6 +13,7 @@ import com.edu.platform.user.dto.response.UserManageResponse;
 import com.edu.platform.user.entity.UserAccount;
 import com.edu.platform.user.entity.UserRelRole;
 import com.edu.platform.user.entity.UserRole;
+import com.edu.platform.user.entity.UserSchoolMember;
 import com.edu.platform.user.mapper.UserAccountMapper;
 import com.edu.platform.user.mapper.UserRelRoleMapper;
 import com.edu.platform.user.mapper.UserRoleMapper;
@@ -39,6 +40,8 @@ public class UserManageServiceImpl implements UserManageService {
     private final UserAccountMapper userAccountMapper;
     private final UserRelRoleMapper userRelRoleMapper;
     private final UserRoleMapper userRoleMapper;
+    private final com.edu.platform.user.mapper.UserSchoolMemberMapper userSchoolMemberMapper;
+    private final com.edu.platform.user.mapper.UserSchoolMapper userSchoolMapper;
     
     @Override
     public PageResult<UserManageResponse> getUserList(UserQueryRequest request) {
@@ -74,6 +77,21 @@ public class UserManageServiceImpl implements UserManageService {
         
         if (request.getStatus() != null) {
             wrapper.eq(UserAccount::getStatus, request.getStatus());
+        }
+        
+        // 增加学校/院系/班级过滤
+        if (request.getSchoolId() != null || StrUtil.isNotBlank(request.getDepartment()) || StrUtil.isNotBlank(request.getClassName())) {
+            StringBuilder subQuery = new StringBuilder("SELECT user_id FROM user_school_member WHERE 1=1");
+            if (request.getSchoolId() != null) {
+                subQuery.append(" AND school_id = ").append(request.getSchoolId());
+            }
+            if (StrUtil.isNotBlank(request.getDepartment())) {
+                subQuery.append(" AND department = '").append(request.getDepartment()).append("'");
+            }
+            if (StrUtil.isNotBlank(request.getClassName())) {
+                subQuery.append(" AND class_name = '").append(request.getClassName()).append("'");
+            }
+            wrapper.inSql(UserAccount::getId, subQuery.toString());
         }
         
         wrapper.orderByDesc(UserAccount::getCreatedTime);
@@ -152,6 +170,25 @@ public class UserManageServiceImpl implements UserManageService {
         response.setStatus(user.getStatus());
         response.setLastLoginTime(user.getLastLoginTime());
         response.setCreatedTime(user.getCreatedTime());
+        
+        // 查询学校成员信息
+        LambdaQueryWrapper<UserSchoolMember> memberWrapper = new LambdaQueryWrapper<>();
+        memberWrapper.eq(UserSchoolMember::getUserId, user.getId())
+                     .orderByDesc(UserSchoolMember::getJoinTime)
+                     .last("LIMIT 1");
+        UserSchoolMember member = userSchoolMemberMapper.selectOne(memberWrapper);
+        if (member != null) {
+            response.setSchoolId(member.getSchoolId());
+            response.setDepartment(member.getDepartment());
+            response.setClassName(member.getClassName());
+            response.setStudentNo(member.getJobNumber());
+            
+            // 查询学校名称
+            com.edu.platform.user.entity.UserSchool school = userSchoolMapper.selectById(member.getSchoolId());
+            if (school != null) {
+                response.setSchoolName(school.getSchoolName());
+            }
+        }
         
         // 查询用户角色
         response.setRoles(getUserRoles(user.getId()));

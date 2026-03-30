@@ -208,4 +208,33 @@ public class SchoolServiceImpl implements SchoolService {
             userSchoolMapper.updateById(school);
         }
     }
+
+    @Override
+    public java.util.List<String> getDepartments(Long schoolId) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserSchoolMember> wrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.select(UserSchoolMember::getDepartment)
+               .eq(UserSchoolMember::getSchoolId, schoolId)
+               .isNotNull(UserSchoolMember::getDepartment)
+               .ne(UserSchoolMember::getDepartment, "")
+               .groupBy(UserSchoolMember::getDepartment);
+        
+        return userSchoolMemberMapper.selectList(wrapper).stream()
+                .map(UserSchoolMember::getDepartment)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public java.util.List<String> getClasses(Long schoolId, String department) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserSchoolMember> wrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.select(UserSchoolMember::getClassName)
+               .eq(UserSchoolMember::getSchoolId, schoolId)
+               .eq(UserSchoolMember::getDepartment, department)
+               .isNotNull(UserSchoolMember::getClassName)
+               .ne(UserSchoolMember::getClassName, "")
+               .groupBy(UserSchoolMember::getClassName);
+        
+        return userSchoolMemberMapper.selectList(wrapper).stream()
+                .map(UserSchoolMember::getClassName)
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

@@ -1,5 +1,6 @@
 package com.edu.platform.report.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -51,6 +52,13 @@ public class ProfileServiceImpl implements ProfileService {
     public void calculateProfile(Long userId, Long courseId) {
         try {
             log.info("开始计算素养画像: userId={}, courseId={}", userId, courseId);
+            
+            // 校验：仅为学生计算画像
+            Integer memberType = studentProfileMapper.getMemberType(userId);
+            if (memberType == null || memberType != 3) {
+                log.info("用户非学生角色(memberType={}), 跳过画像计算: userId={}", memberType, userId);
+                return;
+            }
             
             // 1. 获取配置
             String behaviorWeights = configService.getBehaviorWeights();
@@ -174,7 +182,8 @@ public class ProfileServiceImpl implements ProfileService {
     public void calculateAllProfiles(Long courseId) {
         // 查询有行为记录的用户
         LambdaQueryWrapper<BehaviorLog> wrapper = new LambdaQueryWrapper<BehaviorLog>()
-                .select(BehaviorLog::getUserId);
+                .select(BehaviorLog::getUserId)
+                .apply("user_id IN (SELECT user_id FROM user_school_member WHERE member_type = 3)");
         if (courseId != null && courseId != 0) {
             wrapper.eq(BehaviorLog::getCourseId, courseId);
         }
@@ -355,11 +364,26 @@ public class ProfileServiceImpl implements ProfileService {
     }
     
     @Override
-    public IPage<StudentProfile> listProfiles(Page<StudentProfile> page, Long courseId) {
+    public IPage<StudentProfile> listProfiles(Page<StudentProfile> page, Long courseId, Long schoolId, String department, String className) {
         LambdaQueryWrapper<StudentProfile> wrapper = new LambdaQueryWrapper<>();
         if (courseId != null && courseId != 0) {
             wrapper.eq(StudentProfile::getCourseId, courseId);
         }
+        
+        // 强制仅显示学生 (member_type = 3)
+        StringBuilder subQuery = new StringBuilder("user_id IN (SELECT user_id FROM user_school_member WHERE member_type = 3");
+        if (schoolId != null) {
+            subQuery.append(" AND school_id = ").append(schoolId);
+        }
+        if (StrUtil.isNotBlank(department)) {
+            subQuery.append(" AND department = '").append(department).append("'");
+        }
+        if (StrUtil.isNotBlank(className)) {
+            subQuery.append(" AND class_name = '").append(className).append("'");
+        }
+        subQuery.append(")");
+        wrapper.apply(subQuery.toString());
+        
         wrapper.orderByDesc(StudentProfile::getTotalScore);
         return studentProfileMapper.selectPage(page, wrapper);
     }

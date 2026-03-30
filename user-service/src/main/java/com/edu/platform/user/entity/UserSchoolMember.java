@@ -60,4 +60,9 @@ public class UserSchoolMember extends BaseEntity {
      */
     private Integer status;
     
+    /**
+     * 班级/班号
+     */
+    private String className;
+    
 }

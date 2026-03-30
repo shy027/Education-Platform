@@ -44,10 +44,13 @@ public class ProfileController {
     public Result<IPage<StudentProfile>> listProfiles(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Long current,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") Long size,
-            @Parameter(description = "课程ID") @RequestParam(required = false) Long courseId) {
+            @Parameter(description = "课程ID") @RequestParam(required = false) Long courseId,
+            @Parameter(description = "学校ID") @RequestParam(required = false) Long schoolId,
+            @Parameter(description = "院系/部门") @RequestParam(required = false) String department,
+            @Parameter(description = "班级") @RequestParam(required = false) String className) {
         
         Page<StudentProfile> page = new Page<>(current, size);
-        IPage<StudentProfile> result = profileService.listProfiles(page, courseId);
+        IPage<StudentProfile> result = profileService.listProfiles(page, courseId, schoolId, department, className);
         return Result.success(result);
     }
     
@@ -134,21 +137,27 @@ public class ProfileController {
         }
     }
     
-    /**
-     * 获取雷达图数据
-     */
+    @Operation(summary = "获取雷达图数据", description = "获取用户在指定课程的五维雷达图数据")
     @GetMapping("/radar")
-    @Operation(summary = "获取雷达图数据", description = "获取当前用户在指定课程的五维雷达图数据")
     public Result<RadarDataResponse> getRadarData(
-            @Parameter(description = "课程ID", required = true)
-            @RequestParam Long courseId) {
+            @Parameter(description = "课程ID", required = true) @RequestParam Long courseId,
+            @Parameter(description = "用户ID (管理员/教师可用)") @RequestParam(required = false) Long userId) {
         
-        Long userId = UserContext.getUserId();
-        if (userId == null) {
+        Long targetUserId = userId;
+        if (targetUserId == null) {
+            targetUserId = UserContext.getUserId();
+        } else {
+            // 权限校验
+            if (!UserContext.hasRole("ADMIN") && !UserContext.hasRole("SCHOOL_LEADER") && !UserContext.hasRole("TEACHER")) {
+                return Result.fail("无权查询其他用户的画像数据");
+            }
+        }
+
+        if (targetUserId == null) {
             return Result.fail("未登录");
         }
         
-        RadarDataResponse response = profileService.getRadarData(userId, courseId);
+        RadarDataResponse response = profileService.getRadarData(targetUserId, courseId);
         if (response == null) {
             return Result.fail("暂无素养画像数据");
         }
@@ -156,43 +165,51 @@ public class ProfileController {
         return Result.success(response);
     }
     
-    /**
-     * 获取成长轨迹
-     */
+    @Operation(summary = "获取成长轨迹", description = "获取用户在指定课程的成长轨迹数据")
     @GetMapping("/growth-track")
-    @Operation(summary = "获取成长轨迹", description = "获取当前用户在指定课程的成长轨迹数据")
     public Result<GrowthTrackResponse> getGrowthTrack(
-            @Parameter(description = "课程ID", required = true)
-            @RequestParam Long courseId,
-            @Parameter(description = "天数", required = false)
-            @RequestParam(defaultValue = "30") Integer days) {
+            @Parameter(description = "课程ID", required = true) @RequestParam Long courseId,
+            @Parameter(description = "用户ID (管理员/教师可用)") @RequestParam(required = false) Long userId,
+            @Parameter(description = "天数", required = false) @RequestParam(defaultValue = "30") Integer days) {
         
-        Long userId = UserContext.getUserId();
-        if (userId == null) {
+        Long targetUserId = userId;
+        if (targetUserId == null) {
+            targetUserId = UserContext.getUserId();
+        } else {
+            if (!UserContext.hasRole("ADMIN") && !UserContext.hasRole("SCHOOL_LEADER") && !UserContext.hasRole("TEACHER")) {
+                return Result.fail("无权查询其他用户的画像数据");
+            }
+        }
+
+        if (targetUserId == null) {
             return Result.fail("未登录");
         }
         
-        GrowthTrackResponse response = profileService.getGrowthTrack(userId, courseId, days);
+        GrowthTrackResponse response = profileService.getGrowthTrack(targetUserId, courseId, days);
         return Result.success(response);
     }
     
-    /**
-     * 获取学习统计
-     */
+    @Operation(summary = "获取学习统计", description = "获取用户在指定课程的学习统计数据")
     @GetMapping("/statistics")
-    @Operation(summary = "获取学习统计", description = "获取当前用户在指定课程的学习统计数据")
     public Result<StatisticsResponse> getStatistics(
-            @Parameter(description = "课程ID", required = true)
-            @RequestParam Long courseId,
-            @Parameter(description = "天数", required = false)
-            @RequestParam(defaultValue = "30") Integer days) {
+            @Parameter(description = "课程ID", required = true) @RequestParam Long courseId,
+            @Parameter(description = "用户ID (管理员/教师可用)") @RequestParam(required = false) Long userId,
+            @Parameter(description = "天数", required = false) @RequestParam(defaultValue = "30") Integer days) {
         
-        Long userId = UserContext.getUserId();
-        if (userId == null) {
+        Long targetUserId = userId;
+        if (targetUserId == null) {
+            targetUserId = UserContext.getUserId();
+        } else {
+            if (!UserContext.hasRole("ADMIN") && !UserContext.hasRole("SCHOOL_LEADER") && !UserContext.hasRole("TEACHER")) {
+                return Result.fail("无权查询其他用户的画像数据");
+            }
+        }
+
+        if (targetUserId == null) {
             return Result.fail("未登录");
         }
         
-        StatisticsResponse response = profileService.getStatistics(userId, courseId, days);
+        StatisticsResponse response = profileService.getStatistics(targetUserId, courseId, days);
         return Result.success(response);
     }
     

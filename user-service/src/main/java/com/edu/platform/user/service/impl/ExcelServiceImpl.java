@@ -74,6 +74,7 @@ public class ExcelServiceImpl implements ExcelService {
             student.setStudentNo("2024001");
             student.setSchoolId("1");
             student.setDepartment("计算机学院");
+            student.setClassName("软件2211");
             student.setMajor("软件工程");
             list.add(student);
             
@@ -89,6 +90,7 @@ public class ExcelServiceImpl implements ExcelService {
             teacher.setStudentNo("T2024001");
             teacher.setSchoolId("1");
             teacher.setDepartment("计算机学院");
+            teacher.setClassName("");
             teacher.setMajor("");
             list.add(teacher);
             
@@ -259,6 +261,7 @@ public class ExcelServiceImpl implements ExcelService {
                 
                 member.setJobNumber(data.getStudentNo()); // 工号/学号
                 member.setDepartment(data.getDepartment());
+                member.setClassName(data.getClassName());
                 member.setJoinTime(java.time.LocalDateTime.now());
                 member.setStatus(1);
                 userSchoolMemberMapper.insert(member);
@@ -325,10 +328,12 @@ public class ExcelServiceImpl implements ExcelService {
                 UserSchool school = userSchoolMapper.selectById(member.getSchoolId());
                 excel.setSchoolName(school != null ? school.getSchoolName() : "");
                 excel.setDepartment(member.getDepartment());
+                excel.setClassName(member.getClassName());
                 excel.setJobNumber(member.getJobNumber());
             } else {
                 excel.setSchoolName("");
                 excel.setDepartment("");
+                excel.setClassName("");
                 excel.setJobNumber("");
             }
             

@@ -69,6 +69,31 @@ public class UserManageResponse {
     private LocalDateTime createdTime;
     
     /**
+     * 学校ID
+     */
+    private Long schoolId;
+    
+    /**
+     * 学校名称
+     */
+    private String schoolName;
+    
+    /**
+     * 院系/部门
+     */
+    private String department;
+    
+    /**
+     * 班级
+     */
+    private String className;
+    
+    /**
+     * 学号/工号
+     */
+    private String studentNo;
+    
+    /**
      * 角色信息
      */
     @Data

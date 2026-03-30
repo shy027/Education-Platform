@@ -92,4 +92,10 @@ public class CourseController {
         courseService.deleteDraft(id);
         return Result.success("删除成功", null);
     }
+
+    @Operation(summary = "获取所有已发布课程列表")
+    @GetMapping("/published")
+    public Result<java.util.List<CourseListResponse>> getPublishedCourses() {
+        return Result.success(courseService.getPublishedCourses());
+    }
 }

@@ -464,4 +464,20 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         
         return stats;
     }
+
+    @Override
+    public java.util.List<com.edu.platform.course.dto.response.CourseListResponse> getPublishedCourses() {
+        LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Course::getAuditStatus, 1);
+        List<Course> courses = this.list(wrapper);
+        
+        return courses.stream().map(course -> {
+            com.edu.platform.course.dto.response.CourseListResponse resp = new com.edu.platform.course.dto.response.CourseListResponse();
+            cn.hutool.core.bean.BeanUtil.copyProperties(course, resp);
+            resp.setCover(course.getCourseCover());
+            resp.setDescription(course.getCourseIntro());
+            resp.setMemberCount(course.getStudentCount());
+            return resp;
+        }).collect(Collectors.toList());
+    }
 }

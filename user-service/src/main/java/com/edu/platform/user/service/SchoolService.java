@@ -46,4 +46,14 @@ public interface SchoolService {
      * 删除学校
      */
     void deleteSchool(Long id);
+
+    /**
+     * 获取学校下的院系列表
+     */
+    java.util.List<String> getDepartments(Long schoolId);
+
+    /**
+     * 获取院系下的班级列表
+     */
+    java.util.List<String> getClasses(Long schoolId, String department);
 }

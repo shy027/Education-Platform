@@ -74,8 +74,11 @@ public interface ProfileService {
      *
      * @param page 分页参数
      * @param courseId 课程ID (若为0则查全局)
+     * @param schoolId 学校ID
+     * @param department 院系
+     * @param className 班级
      * @return 分页结果
      */
-    IPage<StudentProfile> listProfiles(Page<StudentProfile> page, Long courseId);
+    IPage<StudentProfile> listProfiles(Page<StudentProfile> page, Long courseId, Long schoolId, String department, String className);
     
 }

@@ -41,17 +41,20 @@ public class UserExportExcel {
     @ExcelProperty(value = "院系", index = 8)
     private String department;
     
-    @ExcelProperty(value = "工号/学号", index = 9)
+    @ExcelProperty(value = "班级", index = 9)
+    private String className;
+    
+    @ExcelProperty(value = "工号/学号", index = 10)
     private String jobNumber;
     
-    @ExcelProperty(value = "状态", index = 10)
+    @ExcelProperty(value = "状态", index = 11)
     private String status;
     
-    @ExcelProperty(value = "最后登录时间", index = 11)
+    @ExcelProperty(value = "最后登录时间", index = 12)
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     private Date lastLoginTime;
     
-    @ExcelProperty(value = "注册时间", index = 12)
+    @ExcelProperty(value = "注册时间", index = 13)
     @DateTimeFormat("yyyy-MM-dd HH:mm:ss")
     private Date createdTime;
     

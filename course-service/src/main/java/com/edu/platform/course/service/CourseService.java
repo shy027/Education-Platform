@@ -88,4 +88,10 @@ public interface CourseService extends IService<Course> {
      * @return 统计数据MAP
      */
     java.util.Map<String, Object> getCourseStats();
+
+    /**
+     * 获取所有已发布课程
+     * @return 课程列表
+     */
+    java.util.List<com.edu.platform.course.dto.response.CourseListResponse> getPublishedCourses();
 }

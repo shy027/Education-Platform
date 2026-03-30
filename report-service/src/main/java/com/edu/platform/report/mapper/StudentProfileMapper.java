@@ -12,4 +12,6 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface StudentProfileMapper extends BaseMapper<StudentProfile> {
     
+    @org.apache.ibatis.annotations.Select("SELECT member_type FROM user_school_member WHERE user_id = #{userId} LIMIT 1")
+    Integer getMemberType(Long userId);
 }

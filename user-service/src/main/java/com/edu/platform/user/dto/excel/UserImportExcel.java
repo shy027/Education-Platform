@@ -41,7 +41,10 @@ public class UserImportExcel {
     @ExcelProperty(value = "院系", index = 9)
     private String department;
     
-    @ExcelProperty(value = "专业", index = 10)
+    @ExcelProperty(value = "班级", index = 10)
+    private String className;
+    
+    @ExcelProperty(value = "专业", index = 11)
     private String major;
     
 }

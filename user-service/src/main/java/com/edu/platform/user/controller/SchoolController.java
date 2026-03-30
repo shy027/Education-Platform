@@ -82,4 +82,18 @@ public class SchoolController {
         schoolService.deleteSchool(id);
         return Result.success("删除成功", null);
     }
+
+    @Operation(summary = "获取学校院系列表")
+    @GetMapping("/{schoolId}/departments")
+    public Result<java.util.List<String>> getDepartments(@PathVariable Long schoolId) {
+        return Result.success(schoolService.getDepartments(schoolId));
+    }
+
+    @Operation(summary = "获取学院班级列表")
+    @GetMapping("/{schoolId}/classes")
+    public Result<java.util.List<String>> getClasses(
+            @PathVariable Long schoolId,
+            @RequestParam String department) {
+        return Result.success(schoolService.getClasses(schoolId, department));
+    }
 }
