@@ -48,6 +48,10 @@ public class ProfileController {
             @Parameter(description = "学校ID") @RequestParam(required = false) Long schoolId,
             @Parameter(description = "院系/部门") @RequestParam(required = false) String department,
             @Parameter(description = "班级") @RequestParam(required = false) String className) {
+        // 权限校验
+        if (!UserContext.hasRole("ADMIN") && !UserContext.hasRole("SCHOOL_LEADER") && !UserContext.hasRole("TEACHER")) {
+            return Result.fail("无权查询学生画像列表");
+        }
         
         Page<StudentProfile> page = new Page<>(current, size);
         IPage<StudentProfile> result = profileService.listProfiles(page, courseId, schoolId, department, className);

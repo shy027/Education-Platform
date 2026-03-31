@@ -53,4 +53,15 @@ public interface AuditService {
      * @return 统计集
      */
     java.util.Map<String, Object> getAuditStats();
+
+    /**
+     * 直接记录人工审核结果 (由其他业务服务上报)
+     *
+     * @param contentType 内容类型
+     * @param contentId 内容ID
+     * @param auditResult 审核结果
+     * @param auditReason 审核原因
+     * @param auditorId 审核人ID
+     */
+    void recordManualAudit(String contentType, Long contentId, Integer auditResult, String auditReason, Long auditorId);
 }

@@ -3,9 +3,11 @@ package com.edu.platform.audit.controller;
 import com.edu.platform.audit.dto.request.AuditQueryRequest;
 import com.edu.platform.audit.dto.request.AuditRequest;
 import com.edu.platform.audit.dto.request.BatchAuditRequest;
+import com.edu.platform.audit.dto.request.ManualAuditRecordRequest;
 import com.edu.platform.audit.dto.response.AuditRecordVO;
 import com.edu.platform.audit.dto.response.BatchAuditResult;
 import com.edu.platform.audit.service.AuditService;
+import com.edu.platform.common.annotation.RequireAdmin;
 import com.edu.platform.common.annotation.RequireAdminOrLeader;
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
@@ -32,7 +34,7 @@ public class AuditController {
     
     @Operation(summary = "查询待审核列表")
     @GetMapping("/pending")
-    @RequireAdminOrLeader
+    @RequireAdmin
     public Result<PageResult<AuditRecordVO>> getPendingList(
             @Parameter(description = "内容类型: COURSEWARE/POST/COMMENT") @RequestParam(required = false) String contentType,
             @Parameter(description = "风险等级: 1-低, 2-中, 3-高") @RequestParam(required = false) Integer riskLevel,
@@ -72,7 +74,7 @@ public class AuditController {
     
     @Operation(summary = "查询审核记录")
     @GetMapping("/records")
-    @RequireAdminOrLeader
+    @RequireAdmin
     public Result<PageResult<AuditRecordVO>> getAuditRecords(
             @Parameter(description = "内容类型") @RequestParam(required = false) String contentType,
             @Parameter(description = "审核结果") @RequestParam(required = false) Integer auditResult,
@@ -91,5 +93,18 @@ public class AuditController {
         
         PageResult<AuditRecordVO> result = auditService.getAuditRecords(request);
         return Result.success(result);
+    }
+
+    @Operation(summary = "手动审核结果上报 (内部调用)")
+    @PostMapping("/manual/record")
+    public Result<Void> recordManualAudit(@Valid @RequestBody ManualAuditRecordRequest request) {
+        auditService.recordManualAudit(
+                request.getContentType(),
+                request.getContentId(),
+                request.getAuditResult(),
+                request.getAuditReason(),
+                request.getAuditorId()
+        );
+        return Result.success();
     }
 }

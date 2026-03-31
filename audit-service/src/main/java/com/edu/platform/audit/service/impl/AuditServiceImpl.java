@@ -148,6 +148,11 @@ public class AuditServiceImpl implements AuditService {
             wrapper.eq(AuditRecord::getContentType, request.getContentType());
         }
         
+        // 内容ID筛选
+        if (request.getContentId() != null) {
+            wrapper.eq(AuditRecord::getContentId, request.getContentId());
+        }
+        
         // 审核结果筛选
         if (request.getAuditResult() != null) {
             wrapper.eq(AuditRecord::getAuditResult, request.getAuditResult());
@@ -348,5 +353,40 @@ public class AuditServiceImpl implements AuditService {
         stats.put("processedToday", processedToday);
         
         return stats;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void recordManualAudit(String contentType, Long contentId, Integer auditResult, String auditReason, Long auditorId) {
+        // 先查找是否有待审核的记录，如果有则更新，没有则新增
+        LambdaQueryWrapper<AuditRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AuditRecord::getContentType, contentType)
+                .eq(AuditRecord::getContentId, contentId)
+                .eq(AuditRecord::getAuditResult, AuditResult.PENDING.getCode())
+                .orderByDesc(AuditRecord::getCreatedTime)
+                .last("LIMIT 1");
+        
+        AuditRecord record = auditRecordMapper.selectOne(wrapper);
+        if (record == null) {
+            record = new AuditRecord();
+            record.setContentType(contentType);
+            record.setContentId(contentId);
+            record.setCreatedTime(LocalDateTime.now());
+        }
+        
+        record.setAuditMethod(AuditMethod.MANUAL.getCode());
+        record.setAuditResult(auditResult);
+        record.setAuditReason(auditReason);
+        record.setAuditorId(auditorId);
+        record.setAuditTime(LocalDateTime.now());
+        
+        if (record.getId() != null) {
+            auditRecordMapper.updateById(record);
+        } else {
+            auditRecordMapper.insert(record);
+        }
+        
+        log.info("内部审核记录已同步: contentType={}, contentId={}, result={}, auditorId={}", 
+                contentType, contentId, auditResult, auditorId);
     }
 }

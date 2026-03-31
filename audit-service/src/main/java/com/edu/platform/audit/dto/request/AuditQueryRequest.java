@@ -14,6 +14,9 @@ public class AuditQueryRequest {
     
     @Schema(description = "内容类型: COURSEWARE/POST/COMMENT")
     private String contentType;
+
+    @Schema(description = "内容ID")
+    private Long contentId;
     
     @Schema(description = "审核结果: 0-待审核, 1-通过, 2-拒绝")
     private Integer auditResult;

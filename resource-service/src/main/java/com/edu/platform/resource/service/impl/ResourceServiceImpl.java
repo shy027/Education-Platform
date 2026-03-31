@@ -6,6 +6,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.PageResult;
+import com.edu.platform.common.result.Result;
+import com.edu.platform.common.utils.UserContext;
+import com.edu.platform.resource.client.AuditClient;
+import com.edu.platform.resource.dto.client.AuditRecordVO;
+import com.edu.platform.resource.dto.client.ManualAuditRecordRequest;
 import com.edu.platform.resource.dto.request.ResourceAuditRequest;
 import com.edu.platform.resource.dto.request.ResourceCreateRequest;
 import com.edu.platform.resource.dto.request.ResourceAttachmentRequest;
@@ -25,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,7 +49,7 @@ public class ResourceServiceImpl implements ResourceService {
     private final ResourceTagRelationMapper tagRelationMapper;
     private final ResourceTagMapper tagMapper;
     private final ResourceCategoryMapper categoryMapper;
-    private final ResourceAuditLogMapper auditLogMapper;
+    private final AuditClient auditClient;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private AuditRequestSender auditRequestSender;
@@ -418,14 +424,19 @@ public class ResourceServiceImpl implements ResourceService {
         resource.setAuditRemark(request.getAuditRemark());
         resourceMapper.updateById(resource);
         
-        // 记录审核日志
-        ResourceAuditLog auditLog = new ResourceAuditLog();
-        auditLog.setResourceId(resourceId);
-        auditLog.setAuditorId(auditorId);
-        auditLog.setAuditResult(request.getAuditResult());
-        auditLog.setAuditRemark(request.getAuditRemark());
-        auditLog.setAuditTime(LocalDateTime.now());
-        auditLogMapper.insert(auditLog);
+        // 记录审核记录到审核中心
+        try {
+            ManualAuditRecordRequest auditRecordRequest = ManualAuditRecordRequest.builder()
+                    .contentType("RESOURCE")
+                    .contentId(resourceId)
+                    .auditResult(request.getAuditResult())
+                    .auditReason(request.getAuditRemark())
+                    .auditorId(auditorId)
+                    .build();
+            auditClient.recordManualAudit(auditRecordRequest);
+        } catch (Exception e) {
+            log.error("上报审核记录到中心失败: resourceId={}, error={}", resourceId, e.getMessage());
+        }
         
         log.info("审核资源成功: resourceId={}, result={}, auditorId={}", 
                 resourceId, request.getAuditResult(), auditorId);
@@ -450,20 +461,38 @@ public class ResourceServiceImpl implements ResourceService {
     
     @Override
     public List<AuditLogResponse> getAuditLogs(Long resourceId) {
-        LambdaQueryWrapper<ResourceAuditLog> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ResourceAuditLog::getResourceId, resourceId);
-        wrapper.orderByDesc(ResourceAuditLog::getAuditTime);
+        // 权限校验：非管理员只能查看自己的资源
+        if (!UserContext.hasRole("ROLE_ADMIN")) {
+            Resource resource = resourceMapper.selectById(resourceId);
+            if (resource == null || !resource.getCreatorId().equals(UserContext.getUserId())) {
+                log.warn("越权访问审核记录: userId={}, resourceId={}", UserContext.getUserId(), resourceId);
+                return Collections.emptyList();
+            }
+        }
+
+        try {
+            Result<PageResult<AuditRecordVO>> auditRecordsResult = 
+                    auditClient.getAuditRecords("RESOURCE", resourceId);
+            
+            if (auditRecordsResult != null && auditRecordsResult.isSuccess() 
+                    && auditRecordsResult.getData() != null) {
+                return auditRecordsResult.getData().getList().stream().map(log -> {
+                    AuditLogResponse response = new AuditLogResponse();
+                    response.setId(log.getId());
+                    response.setAuditorId(log.getAuditorId());
+                    response.setAuditResult(log.getAuditResult());
+                    response.setAuditRemark(log.getAuditReason());
+                    response.setAuditTime(log.getAuditTime());
+                    // TODO: 调用User服务获取审核人名称
+                    response.setAuditorName("管理员");
+                    return response;
+                }).collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            log.error("从审核中心获取历史记录失败: resourceId={}, error={}", resourceId, e.getMessage());
+        }
         
-        List<ResourceAuditLog> logs = auditLogMapper.selectList(wrapper);
-        
-        return logs.stream().map(log -> {
-            AuditLogResponse response = new AuditLogResponse();
-            BeanUtil.copyProperties(log, response);
-            // TODO: 调用User服务获取审核人名称
-            // 这里暂时设置为"管理员"
-            response.setAuditorName("管理员");
-            return response;
-        }).collect(Collectors.toList());
+        return Collections.emptyList();
     }
     
     @Override
