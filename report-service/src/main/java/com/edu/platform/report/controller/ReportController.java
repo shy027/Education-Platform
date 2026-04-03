@@ -113,13 +113,14 @@ public class ReportController {
      * 查询所有报告列表(管理员)
      */
     @GetMapping
-    @Operation(summary = "查询所有报告列表", description = "管理员查询所有报告(支持多条件筛选)")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @Operation(summary = "查询所有报告列表", description = "管理员/校领导查询所有报告(支持多条件筛选)")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SCHOOL_LEADER')")
     public Result<PageResult<ReportDTO>> getReportList(
             @RequestParam(required = false) Long courseId,
             @RequestParam(required = false) Integer reportType,
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) Long schoolId,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
         
@@ -130,6 +131,7 @@ public class ReportController {
             request.setReportType(reportType);
             request.setStartTime(startTime);
             request.setEndTime(endTime);
+            request.setSchoolId(schoolId);
             request.setPageNum(pageNum);
             request.setPageSize(pageSize);
             

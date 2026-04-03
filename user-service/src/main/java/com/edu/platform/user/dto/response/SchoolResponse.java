@@ -64,5 +64,10 @@ public class SchoolResponse {
      * 课程数量
      */
     private Integer courseCount;
+
+    /**
+     * 联系电话
+     */
+    private String contactPhone;
     
 }

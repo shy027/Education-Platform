@@ -42,6 +42,9 @@ public class UserManageController {
             @RequestParam(required = false) String phone,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) Long roleId,
+            @RequestParam(required = false) Long schoolId,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String className,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
@@ -52,6 +55,9 @@ public class UserManageController {
         request.setPhone(phone);
         request.setEmail(email);
         request.setRoleId(roleId);
+        request.setSchoolId(schoolId);
+        request.setDepartment(department);
+        request.setClassName(className);
         request.setStatus(status);
         request.setPageNum(pageNum);
         request.setPageSize(pageSize);

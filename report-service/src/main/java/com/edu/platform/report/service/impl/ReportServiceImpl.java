@@ -306,6 +306,10 @@ public class ReportServiceImpl implements ReportService {
         if (request.getEndTime() != null) {
             wrapper.le(CourseReport::getGenerateTime, request.getEndTime());
         }
+        if (request.getSchoolId() != null) {
+            String subQuery = "generator_id IN (SELECT user_id FROM user_school_member WHERE school_id = " + request.getSchoolId() + ")";
+            wrapper.apply(subQuery);
+        }
         wrapper.orderByDesc(CourseReport::getGenerateTime);
         
         Page<CourseReport> reportPage = courseReportMapper.selectPage(page, wrapper);

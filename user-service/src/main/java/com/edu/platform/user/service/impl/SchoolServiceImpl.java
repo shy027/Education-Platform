@@ -152,6 +152,7 @@ public class SchoolServiceImpl implements SchoolService {
         response.setAddress(school.getAddress());
         response.setLogoUrl(school.getLogoUrl());
         response.setDescription(school.getDescription());
+        response.setContactPhone(school.getContactPhone());
         return response;
     }
 
@@ -170,12 +171,18 @@ public class SchoolServiceImpl implements SchoolService {
         school.setCity(request.getCity());
         school.setAddress(request.getAddress());
         school.setContactPhone(request.getContactPhone());
+        school.setLogoUrl(request.getLogoUrl());
+        school.setDescription(request.getDescription());
         school.setStatus(1);
         school.setCreatedTime(LocalDateTime.now());
         school.setUpdatedTime(LocalDateTime.now());
         
-        // 简单生成一个学校编码
-        school.setSchoolCode("SC" + System.currentTimeMillis() % 1000000);
+        // 如果请求中没有编码，则自动生成
+        if (StrUtil.isBlank(request.getSchoolCode())) {
+            school.setSchoolCode("SC" + System.currentTimeMillis() % 1000000);
+        } else {
+            school.setSchoolCode(request.getSchoolCode());
+        }
         
         userSchoolMapper.insert(school);
     }
@@ -193,6 +200,9 @@ public class SchoolServiceImpl implements SchoolService {
         school.setCity(request.getCity());
         school.setAddress(request.getAddress());
         school.setContactPhone(request.getContactPhone());
+        school.setSchoolCode(request.getSchoolCode());
+        school.setLogoUrl(request.getLogoUrl());
+        school.setDescription(request.getDescription());
         school.setUpdatedTime(LocalDateTime.now());
         
         userSchoolMapper.updateById(school);

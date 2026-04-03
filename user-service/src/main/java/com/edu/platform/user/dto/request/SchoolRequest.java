@@ -26,4 +26,14 @@ public class SchoolRequest {
 
     @Schema(description = "联系电话")
     private String contactPhone;
+
+    @Schema(description = "学校编码")
+    private String schoolCode;
+
+    @Schema(description = "学校Logo")
+    private String logoUrl;
+
+    @Schema(description = "学校简介")
+    @NotBlank(message = "学校简介不能为空")
+    private String description;
 }

@@ -31,6 +31,11 @@ public class ReportListRequest {
     private String endTime;
     
     /**
+     * 学校ID
+     */
+    private Long schoolId;
+    
+    /**
      * 页码
      */
     private Integer pageNum = 1;
