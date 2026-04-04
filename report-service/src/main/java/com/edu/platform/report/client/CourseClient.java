@@ -9,7 +9,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 /**
  * 课程服务内部接口客户端
  */
-@FeignClient(name = "course-service", path = "/internal/course")
+@FeignClient(
+    name = "course-service", 
+    url = "${app.feign.services.course-service.url:http://localhost:8083}", 
+    path = "/internal/course"
+)
 public interface CourseClient {
 
     /**

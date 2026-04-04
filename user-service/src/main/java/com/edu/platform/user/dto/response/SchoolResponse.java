@@ -69,5 +69,10 @@ public class SchoolResponse {
      * 联系电话
      */
     private String contactPhone;
+
+    /**
+     * 创建时间
+     */
+    private java.time.LocalDateTime createdTime;
     
 }

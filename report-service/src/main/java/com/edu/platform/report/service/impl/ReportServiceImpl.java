@@ -345,6 +345,9 @@ public class ReportServiceImpl implements ReportService {
         
         // 设置状态: 根据是否有文件URL判定(简化逻辑: 有URL则已完成2, 否则生成中1)
         dto.setStatus(report.getFileUrl() != null ? 2 : 1);
+        
+        // 设置完成时间 (以生成时间为准)
+        dto.setFinishedTime(report.getGenerateTime());
 
         // 查询课程名称
         if (report.getCourseId() != null) {

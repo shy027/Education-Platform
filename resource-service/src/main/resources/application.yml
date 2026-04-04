@@ -92,3 +92,10 @@ aliyun:
     access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
     bucket-name: education-platform-shy
     folder: education
+
+# 内部服务通信配置 (Feign)
+app:
+  feign:
+    services:
+      audit-service:
+        url: http://localhost:8086

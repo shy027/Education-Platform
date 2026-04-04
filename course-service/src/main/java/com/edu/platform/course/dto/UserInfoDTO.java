@@ -35,4 +35,9 @@ public class UserInfoDTO {
      * 手机号
      */
     private String phone;
+    
+    /**
+     * 学校名称
+     */
+    private String schoolName;
 }

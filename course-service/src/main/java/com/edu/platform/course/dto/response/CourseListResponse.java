@@ -45,4 +45,7 @@ public class CourseListResponse {
     private LocalDateTime endTime;
     
     private Integer auditStatus;
+
+    /** 课程创建时间 */
+    private LocalDateTime createdTime;
 }

@@ -97,3 +97,16 @@ task:
     max-size: 10
     queue-capacity: 100
     keep-alive-seconds: 60
+
+# 内部服务通信配置 (Feign)
+app:
+  feign:
+    services:
+      user-service:
+        url: http://localhost:8081
+      resource-service:
+        url: http://localhost:8082
+      course-service:
+        url: http://localhost:8083
+      audit-service:
+        url: http://localhost:8086

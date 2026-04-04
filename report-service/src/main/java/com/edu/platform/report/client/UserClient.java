@@ -9,7 +9,11 @@ import java.util.Map;
 /**
  * 用户服务Feign客户端
  */
-@FeignClient(name = "user-service", path = "/internal/user")
+@FeignClient(
+    name = "user-service", 
+    url = "${app.feign.services.user-service.url:http://localhost:8081}", 
+    path = "/internal/user"
+)
 public interface UserClient {
 
     /**

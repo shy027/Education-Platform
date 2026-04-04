@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
  *
  * @author Education Platform
  */
-@FeignClient(name = "community-service", url = "http://localhost:8083", path = "/internal")
+@FeignClient(name = "community-service", url = "${app.feign.services.community-service.url:http://localhost:8084}", path = "/internal")
 public interface CommunityClient {
     
     /**

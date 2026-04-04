@@ -9,7 +9,11 @@ import java.util.Map;
 /**
  * 审核服务Feign客户端
  */
-@FeignClient(name = "audit-service", path = "/internal/audit")
+@FeignClient(
+    name = "audit-service", 
+    url = "${app.feign.services.audit-service.url:http://localhost:8086}", 
+    path = "/internal/audit"
+)
 public interface AuditClient {
 
     /**

@@ -45,6 +45,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
 
     private final SubjectCategoryService subjectCategoryService;
     private final UserServiceClient userServiceClient;
+    private final com.edu.platform.course.client.AuditClient auditClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -254,13 +255,13 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             resp.setMemberCount(course.getStudentCount());
             
             if (finalUserMap != null && finalUserMap.containsKey(course.getTeacherId())) {
-                UserInfoDTO teacher = finalUserMap.get(course.getTeacherId());
-                resp.setTeacherName(StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
+                UserInfoDTO user = finalUserMap.get(course.getTeacherId());
+                resp.setTeacherName(StrUtil.isNotBlank(user.getRealName()) ? user.getRealName() : user.getUsername());
+                resp.setSchoolName(user.getSchoolName() != null ? user.getSchoolName() : "未知院校");
             } else {
                 resp.setTeacherName("未知教师");
+                resp.setSchoolName("未知院校");
             }
-            // TODO: 填充学校名称
-            resp.setSchoolName("Test School");
             return resp;
         }).collect(Collectors.toList());
 
@@ -398,6 +399,19 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         course.setAuditRemark(request.getAuditRemark());
         
         this.updateById(course);
+
+        // 同步到中央审核中心
+        try {
+            java.util.Map<String, Object> auditRecord = new java.util.HashMap<>();
+            auditRecord.put("contentType", "COURSE");
+            auditRecord.put("contentId", id);
+            auditRecord.put("auditResult", isApproved ? 1 : 2);
+            auditRecord.put("auditReason", request.getAuditRemark());
+            auditRecord.put("auditorId", currentUserId);
+            auditClient.recordManualAudit(auditRecord);
+        } catch (Exception e) {
+            log.error("同步审核结果到审核中心失败: {}", e.getMessage());
+        }
     }
 
     @Override
@@ -423,6 +437,13 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
 
         course.setAuditStatus(0); // 待审核
         this.updateById(course);
+
+        // 同步到中央审核中心
+        try {
+            auditClient.submitAuditRequest("COURSE", id);
+        } catch (Exception e) {
+            log.error("提交课程审核申请到审核中心失败: {}", e.getMessage());
+        }
     }
 
     @Override
@@ -449,16 +470,24 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
     public java.util.Map<String, Object> getCourseStats() {
         java.util.Map<String, Object> stats = new java.util.HashMap<>();
         
-        // 总课程数
+        // 已通过审核（上架）的课程总数
         Long totalCourses = this.count(new LambdaQueryWrapper<Course>()
                 .eq(Course::getAuditStatus, 1));
         stats.put("totalCourses", totalCourses);
+
+        // 待审核课程数（直接从 course 表查，不依赖 audit_record）
+        Long pendingCourses = this.count(new LambdaQueryWrapper<Course>()
+                .eq(Course::getAuditStatus, 0));
+        stats.put("pendingCourses", pendingCourses);
         
-        // 补充数量统计 (MyBatis-Plus selectMaps 不支持直接聚合时，手动查询或使用自定义 SQL)
-        // 为简单起见，这里直接查询并分组计数
-        List<Course> allCourses = this.list(new LambdaQueryWrapper<Course>().select(Course::getSubjectArea).isNotNull(Course::getSubjectArea));
+        // 学科课程分布（查全列避免 MyBatis-Plus 单列查询返回 null 实体问题）
+        List<Course> allCourses = this.list(new LambdaQueryWrapper<Course>());
         java.util.Map<String, Long> distribution = allCourses.stream()
-                .collect(Collectors.groupingBy(Course::getSubjectArea, Collectors.counting()));
+                .filter(c -> c != null)
+                .collect(Collectors.groupingBy(
+                    c -> cn.hutool.core.util.StrUtil.isNotBlank(c.getSubjectArea()) ? c.getSubjectArea() : "未分类",
+                    Collectors.counting()
+                ));
         
         stats.put("subjectDistribution", distribution);
         
@@ -479,5 +508,18 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             resp.setMemberCount(course.getStudentCount());
             return resp;
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateCourseAuditStatus(Long courseId, Integer auditStatus) {
+        Course course = this.getById(courseId);
+        if (course == null) {
+            log.warn("审核回调：课程不存在, courseId={}", courseId);
+            return;
+        }
+        course.setAuditStatus(auditStatus);
+        this.updateById(course);
+        log.info("课程审核状态已更新(内部回调): courseId={}, auditStatus={}", courseId, auditStatus);
     }
 }

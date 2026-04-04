@@ -153,6 +153,7 @@ public class SchoolServiceImpl implements SchoolService {
         response.setLogoUrl(school.getLogoUrl());
         response.setDescription(school.getDescription());
         response.setContactPhone(school.getContactPhone());
+        response.setCreatedTime(school.getCreatedTime());
         return response;
     }
 

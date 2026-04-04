@@ -78,6 +78,15 @@ public class DashboardController {
             log.error("获取审核统计失败: {}", e.getMessage());
         }
 
+        // 合并：待审核项 = 审核中心的待办 + 课程系统的待审核课程
+        // audit-service 的 pendingAudits 包含资源/帖子/评论等内容
+        // course-service 的 pendingCourses 来自 course 表，是课程待审核的权威来源
+        long auditPending  = ((Number) aggregateStats.getOrDefault("pendingAudits",  0L)).longValue();
+        long coursePending = ((Number) aggregateStats.getOrDefault("pendingCourses", 0L)).longValue();
+        aggregateStats.put("pendingAudits", auditPending + coursePending);
+        // 清除临时 key，避免前端误用
+        aggregateStats.remove("pendingCourses");
+
         return Result.success(aggregateStats);
     }
 }

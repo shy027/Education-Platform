@@ -1,7 +1,6 @@
 package com.edu.platform.audit.client;
 
-import com.edu.platform.audit.dto.feign.CoursewareInfoDTO;
-import com.edu.platform.audit.dto.feign.UpdateAuditStatusRequest;
+
 import com.edu.platform.common.result.Result;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,34 +8,36 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.util.Map;
+
 /**
  * 课程服务Feign客户端
  *
  * @author Education Platform
  */
-@FeignClient(name = "course-service", url = "http://localhost:8083", path = "/internal/courseware")
+@FeignClient(name = "course-service", url = "${app.feign.services.course-service.url:http://localhost:8083}", path = "/internal/course")
 public interface CourseClient {
     
     /**
-     * 更新课件审核状态
+     * 更新课程审核状态 (内部回调)
      *
-     * @param coursewareId 课件ID
-     * @param request 审核状态请求
+     * @param courseId 课程ID
+     * @param request 审核状态请求 (auditStatus, auditorId)
      * @return 结果
      */
-    @PutMapping("/{coursewareId}/audit-status")
+    @PutMapping("/{courseId}/audit-status")
     Result<Void> updateAuditStatus(
-        @PathVariable("coursewareId") Long coursewareId,
-        @RequestBody UpdateAuditStatusRequest request
+        @PathVariable("courseId") Long courseId,
+        @RequestBody Map<String, Object> request
     );
     
     /**
-     * 获取课件信息
+     * 获取课程信息 (用于审核展示)
      *
-     * @param coursewareId 课件ID
-     * @return 课件信息
+     * @param courseId 课程ID
+     * @return 课程信息
      */
-    @GetMapping("/{coursewareId}")
-    Result<CoursewareInfoDTO> getCoursewareInfo(@PathVariable("coursewareId") Long coursewareId);
+    @GetMapping("/stats")
+    Result<Map<String, Object>> getStats();
     
 }

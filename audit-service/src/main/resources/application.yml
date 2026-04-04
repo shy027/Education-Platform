@@ -51,3 +51,14 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+
+# 内部服务通信配置 (Feign)
+app:
+  feign:
+    services:
+      course-service:
+        url: http://localhost:8083
+      community-service:
+        url: http://localhost:8084
+      resource-service:
+        url: http://localhost:8082

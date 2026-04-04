@@ -5,9 +5,7 @@ import com.edu.platform.course.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
@@ -26,5 +24,17 @@ public class InternalCourseController {
     @GetMapping("/stats")
     public Result<Map<String, Object>> getCourseStats() {
         return Result.success(courseService.getCourseStats());
+    }
+
+    @Operation(summary = "更新课程审核状态(内部回调)")
+    @PutMapping("/{courseId}/audit-status")
+    public Result<Void> updateAuditStatus(
+            @PathVariable Long courseId,
+            @RequestBody Map<String, Object> request) {
+        Integer auditStatus = (Integer) request.get("auditStatus");
+        if (auditStatus != null) {
+            courseService.updateCourseAuditStatus(courseId, auditStatus);
+        }
+        return Result.success();
     }
 }

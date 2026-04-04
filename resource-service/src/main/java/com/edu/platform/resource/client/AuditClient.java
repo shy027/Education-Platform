@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 @FeignClient(
     name = "audit-service", 
     contextId = "resourceAuditClient", 
-    url = "http://localhost:8086", 
+    url = "${app.feign.services.audit-service.url:http://localhost:8086}", 
     path = "/api/v1/audit"
 )
 public interface AuditClient {
@@ -33,13 +33,17 @@ public interface AuditClient {
     Result<Void> recordManualAudit(@RequestBody ManualAuditRecordRequest request);
 
     /**
-     * 查询审核记录
-     *
-     * @param contentType 内容类型
-     * @param contentId 内容ID
-     * @return 审核记录列表
+     * 提交审核申请
      */
-    @GetMapping("/internal/audit/records")
+    @PostMapping("/submit")
+    Result<Void> submitAuditRequest(
+            @RequestParam("contentType") String contentType,
+            @RequestParam("contentId") Long contentId);
+
+    /**
+     * 查询审核记录
+     */
+    @GetMapping("/records")
     Result<PageResult<AuditRecordVO>> getAuditRecords(
             @RequestParam(value = "contentType", required = false) String contentType,
             @RequestParam(value = "contentId", required = false) Long contentId

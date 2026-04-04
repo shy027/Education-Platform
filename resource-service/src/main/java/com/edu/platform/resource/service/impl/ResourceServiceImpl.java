@@ -9,6 +9,7 @@ import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
 import com.edu.platform.common.utils.UserContext;
 import com.edu.platform.resource.client.AuditClient;
+import com.edu.platform.resource.client.UserClient;
 import com.edu.platform.resource.dto.client.AuditRecordVO;
 import com.edu.platform.resource.dto.client.ManualAuditRecordRequest;
 import com.edu.platform.resource.dto.request.ResourceAuditRequest;
@@ -50,6 +51,7 @@ public class ResourceServiceImpl implements ResourceService {
     private final ResourceTagMapper tagMapper;
     private final ResourceCategoryMapper categoryMapper;
     private final AuditClient auditClient;
+    private final UserClient userClient;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private AuditRequestSender auditRequestSender;
@@ -345,8 +347,26 @@ public class ResourceServiceImpl implements ResourceService {
         
         Page<Resource> resultPage = resourceMapper.selectPage(page, wrapper);
         
-        List<ResourceResponse> responses = resultPage.getRecords().stream()
-                .map(this::convertToResponse)
+        List<Resource> records = resultPage.getRecords();
+        if (records.isEmpty()) {
+            return new PageResult<>(resultPage.getTotal(), new java.util.ArrayList<>());
+        }
+
+        // 批量获取用户信息
+        List<Long> userIds = records.stream().map(Resource::getCreatorId).distinct().collect(Collectors.toList());
+        java.util.Map<Long, com.edu.platform.resource.dto.feign.UserManageDTO> userMap = new java.util.HashMap<>();
+        try {
+            Result<java.util.Map<Long, com.edu.platform.resource.dto.feign.UserManageDTO>> userResult = userClient.batchGetUserInfo(userIds);
+            if (userResult != null && userResult.isSuccess()) {
+                userMap = userResult.getData();
+            }
+        } catch (Exception e) {
+            log.error("批量获取用户信息失败", e);
+        }
+
+        final java.util.Map<Long, com.edu.platform.resource.dto.feign.UserManageDTO> finalUserMap = userMap;
+        List<ResourceResponse> responses = records.stream()
+                .map(r -> convertToResponseWithUser(r, finalUserMap))
                 .collect(Collectors.toList());
         
         return new PageResult<>(resultPage.getTotal(), responses);
@@ -389,6 +409,13 @@ public class ResourceServiceImpl implements ResourceService {
         if (auditRequestSender != null) {
             auditRequestSender.sendResourceAuditRequest(
                     resourceId, userId, resource.getTitle(), resource.getSummary());
+        }
+        
+        // 同时同步提交到审核中心，确保看板数据及时更新
+        try {
+            auditClient.submitAuditRequest("RESOURCE", resourceId);
+        } catch (Exception e) {
+            log.error("同步提交资源审核申请失败: {}", e.getMessage());
         }
         
         log.info("提交审核成功: resourceId={}, userId={}", resourceId, userId);
@@ -452,8 +479,26 @@ public class ResourceServiceImpl implements ResourceService {
         
         Page<Resource> resultPage = resourceMapper.selectPage(page, wrapper);
         
-        List<ResourceResponse> responses = resultPage.getRecords().stream()
-                .map(this::convertToResponse)
+        List<Resource> records = resultPage.getRecords();
+        if (records.isEmpty()) {
+            return new PageResult<>(resultPage.getTotal(), new java.util.ArrayList<>());
+        }
+
+        // 批量获取用户信息
+        List<Long> userIds = records.stream().map(Resource::getCreatorId).distinct().collect(Collectors.toList());
+        java.util.Map<Long, com.edu.platform.resource.dto.feign.UserManageDTO> userMap = new java.util.HashMap<>();
+        try {
+            Result<java.util.Map<Long, com.edu.platform.resource.dto.feign.UserManageDTO>> userResult = userClient.batchGetUserInfo(userIds);
+            if (userResult != null && userResult.isSuccess()) {
+                userMap = userResult.getData();
+            }
+        } catch (Exception e) {
+            log.error("待审核列表批量获取用户信息失败", e);
+        }
+
+        final java.util.Map<Long, com.edu.platform.resource.dto.feign.UserManageDTO> finalUserMap = userMap;
+        List<ResourceResponse> responses = records.stream()
+                .map(r -> convertToResponseWithUser(r, finalUserMap))
                 .collect(Collectors.toList());
         
         return new PageResult<>(resultPage.getTotal(), responses);
@@ -529,8 +574,21 @@ public class ResourceServiceImpl implements ResourceService {
      * 转换为响应DTO
      */
     private ResourceResponse convertToResponse(Resource resource) {
+        return convertToResponseWithUser(resource, java.util.Collections.emptyMap());
+    }
+
+    /**
+     * 转换为响应DTO (包含用户信息)
+     */
+    private ResourceResponse convertToResponseWithUser(Resource resource, java.util.Map<Long, com.edu.platform.resource.dto.feign.UserManageDTO> userMap) {
         ResourceResponse response = BeanUtil.copyProperties(resource, ResourceResponse.class);
         
+        // 设置创建者姓名
+        if (resource.getCreatorId() != null && userMap.containsKey(resource.getCreatorId())) {
+            com.edu.platform.resource.dto.feign.UserManageDTO user = userMap.get(resource.getCreatorId());
+            response.setCreatorName(cn.hutool.core.util.StrUtil.isNotBlank(user.getRealName()) ? user.getRealName() : user.getUsername());
+        }
+
         // 获取分类名称
         if (resource.getCategoryId() != null) {
             ResourceCategory category = categoryMapper.selectById(resource.getCategoryId());

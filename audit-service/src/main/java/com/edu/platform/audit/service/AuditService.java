@@ -64,4 +64,12 @@ public interface AuditService {
      * @param auditorId 审核人ID
      */
     void recordManualAudit(String contentType, Long contentId, Integer auditResult, String auditReason, Long auditorId);
+
+    /**
+     * 提交审核申请 (由其他业务服务在提交审核时调用)
+     *
+     * @param contentType 内容类型
+     * @param contentId 内容ID
+     */
+    void submitAuditRequest(String contentType, Long contentId);
 }

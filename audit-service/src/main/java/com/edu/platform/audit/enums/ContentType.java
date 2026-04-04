@@ -12,7 +12,9 @@ public enum ContentType {
     
     COURSEWARE("COURSEWARE", "课件"),
     POST("POST", "帖子"),
-    COMMENT("COMMENT", "评论");
+    COMMENT("COMMENT", "评论"),
+    COURSE("COURSE", "课程"),
+    RESOURCE("RESOURCE", "资源");
     
     private final String code;
     private final String name;

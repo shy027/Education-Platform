@@ -107,4 +107,13 @@ public class AuditController {
         );
         return Result.success();
     }
+
+    @Operation(summary = "提交审核申请 (内部调用)")
+    @PostMapping("/submit")
+    public Result<Void> submitAuditRequest(
+            @RequestParam String contentType,
+            @RequestParam Long contentId) {
+        auditService.submitAuditRequest(contentType, contentId);
+        return Result.success();
+    }
 }

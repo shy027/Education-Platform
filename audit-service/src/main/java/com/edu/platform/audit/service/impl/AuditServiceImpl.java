@@ -7,7 +7,6 @@ import com.edu.platform.audit.client.CommunityClient;
 import com.edu.platform.audit.client.CourseClient;
 import com.edu.platform.audit.client.ResourceClient;
 import com.edu.platform.audit.dto.feign.CommentInfoDTO;
-import com.edu.platform.audit.dto.feign.CoursewareInfoDTO;
 import com.edu.platform.audit.dto.feign.PostInfoDTO;
 import com.edu.platform.audit.dto.feign.UpdateAuditStatusRequest;
 import com.edu.platform.audit.dto.request.AuditQueryRequest;
@@ -249,9 +248,12 @@ public class AuditServiceImpl implements AuditService {
         
         try {
             switch (contentType) {
-                case "COURSEWARE":
-                    courseClient.updateAuditStatus(contentId, request);
-                    log.info("更新课件审核状态成功: contentId={}, auditResult={}", contentId, auditResult);
+                case "COURSE":
+                    java.util.Map<String, Object> courseReq = new java.util.HashMap<>();
+                    courseReq.put("auditStatus", auditResult);
+                    courseReq.put("auditorId", auditorId);
+                    courseClient.updateAuditStatus(contentId, courseReq);
+                    log.info("更新课程审核状态成功: contentId={}, auditResult={}", contentId, auditResult);
                     break;
                 case "POST":
                     communityClient.updatePostAuditStatus(contentId, request);
@@ -285,17 +287,10 @@ public class AuditServiceImpl implements AuditService {
     private void fetchContentDetails(AuditRecord record, AuditRecordVO vo) {
         try {
             switch (record.getContentType()) {
-                case "COURSEWARE":
-                    Result<CoursewareInfoDTO> coursewareResult = 
-                        courseClient.getCoursewareInfo(record.getContentId());
-                    if (coursewareResult != null && coursewareResult.isSuccess() 
-                        && coursewareResult.getData() != null) {
-                        CoursewareInfoDTO info = coursewareResult.getData();
-                        vo.setContentTitle(info.getTitle());
-                        vo.setContentPreview(truncate(info.getDescription(), 100));
-                        vo.setCreatorId(info.getCreatorId());
-                        vo.setCreatorName(info.getCreatorName());
-                    }
+                case "COURSE":
+                    // 课程暂不提供详情接口，仅设置基本标识
+                    vo.setContentTitle("课程 #" + record.getContentId());
+                    vo.setContentPreview("ID: " + record.getContentId());
                     break;
                 case "POST":
                     Result<PostInfoDTO> postResult = 
@@ -388,5 +383,43 @@ public class AuditServiceImpl implements AuditService {
         
         log.info("内部审核记录已同步: contentType={}, contentId={}, result={}, auditorId={}", 
                 contentType, contentId, auditResult, auditorId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void submitAuditRequest(String contentType, Long contentId) {
+        // 逻辑调整：不再简单 count，而是尝试更新旧记录或插入新记录
+        LambdaQueryWrapper<AuditRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AuditRecord::getContentType, contentType)
+                .eq(AuditRecord::getContentId, contentId)
+                .orderByDesc(AuditRecord::getCreatedTime)
+                .last("LIMIT 1");
+        
+        AuditRecord record = auditRecordMapper.selectOne(wrapper);
+        
+        if (record != null) {
+            if (record.getAuditResult() == 0) {
+                log.info("该内容已存在待审核记录，无需重复创建: contentType={}, contentId={}", contentType, contentId);
+                return;
+            }
+            // 如果是已审核过的（通过或拒绝），现在重新提交，则将其状态重置为待审核
+            record.setAuditResult(0); // 待审核
+            record.setAuditMethod(null);
+            record.setAuditReason(null);
+            record.setAuditorId(null);
+            record.setAuditTime(null);
+            record.setCreatedTime(LocalDateTime.now()); // 更新提交时间
+            auditRecordMapper.updateById(record);
+            log.info("已将现有审核记录重置为待审核状态: contentType={}, contentId={}", contentType, contentId);
+        } else {
+            // 不存在记录，则插入新纪录
+            record = new AuditRecord();
+            record.setContentType(contentType);
+            record.setContentId(contentId);
+            record.setAuditResult(0); // 待审核
+            record.setCreatedTime(LocalDateTime.now());
+            auditRecordMapper.insert(record);
+            log.info("已创建全新待审核记录: contentType={}, contentId={}", contentType, contentId);
+        }
     }
 }

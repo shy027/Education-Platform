@@ -94,4 +94,12 @@ public interface CourseService extends IService<Course> {
      * @return 课程列表
      */
     java.util.List<com.edu.platform.course.dto.response.CourseListResponse> getPublishedCourses();
+
+    /**
+     * 更新课程审核状态 (内部回调)
+     *
+     * @param courseId    课程 ID
+     * @param auditStatus 审核状态: 0=待审核, 1=通过, 2=拒绝
+     */
+    void updateCourseAuditStatus(Long courseId, Integer auditStatus);
 }

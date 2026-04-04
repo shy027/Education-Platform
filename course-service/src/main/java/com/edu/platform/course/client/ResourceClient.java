@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * 资源服务 Feign 客户端
  */
-@FeignClient(name = "resource-service", url = "http://localhost:8082", path = "/internal/resource")
+@FeignClient(name = "resource-service", url = "${app.feign.services.resource-service.url:http://localhost:8082}", path = "/internal/resource")
 public interface ResourceClient {
 
     /**

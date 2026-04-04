@@ -68,6 +68,11 @@ public class ReportDTO {
     private Integer downloadCount;
     
     /**
+     * 完成时间
+     */
+    private LocalDateTime finishedTime;
+    
+    /**
      * 创建时间
      */
     private LocalDateTime createdTime;
