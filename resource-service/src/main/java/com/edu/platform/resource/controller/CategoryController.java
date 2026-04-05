@@ -63,5 +63,15 @@ public class CategoryController {
         categoryService.deleteCategory(id);
         return Result.success();
     }
+
+    @Operation(summary = "更新分类状态")
+    @PutMapping("/{id}/status")
+    @RequireAdminOrLeader
+    public Result<Void> updateStatus(
+            @PathVariable Long id,
+            @RequestParam Integer status) {
+        categoryService.updateStatus(id, status);
+        return Result.success();
+    }
     
 }

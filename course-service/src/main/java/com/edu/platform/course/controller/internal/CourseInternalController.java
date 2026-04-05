@@ -8,10 +8,8 @@ import cn.hutool.core.bean.BeanUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import lombok.Data;
 
 /**
  * 课程内部接口控制器
@@ -34,5 +32,43 @@ public class CourseInternalController {
         CourseScoringDTO dto = new CourseScoringDTO();
         BeanUtil.copyProperties(course, dto);
         return Result.success(dto);
+    }
+
+    /**
+     * 更新课程审核状态 (由audit-service调用)
+     */
+    @Operation(summary = "更新课程审核状态")
+    @PutMapping("/{courseId}/audit-status")
+    public Result<Void> updateAuditStatus(
+            @PathVariable Long courseId,
+            @RequestBody UpdateAuditStatusRequest request) {
+        courseService.updateCourseAuditStatus(courseId, request.getAuditStatus(),
+                request.getAuditorId(), request.getAuditRemark());
+        return Result.success();
+    }
+
+    /**
+     * 获取课程基本信息 (用于审核中心展示)
+     */
+    @Operation(summary = "获取课程基本信息")
+    @GetMapping("/{courseId}/info")
+    public Result<java.util.Map<String, Object>> getCourseInfo(@PathVariable Long courseId) {
+        return Result.success(courseService.getCourseInfo(courseId));
+    }
+
+    /**
+     * 获取课程统计信息 (内部调用)
+     */
+    @Operation(summary = "获取课程统计信息")
+    @GetMapping("/stats")
+    public Result<java.util.Map<String, Object>> getCourseStats() {
+        return Result.success(courseService.getCourseStats());
+    }
+
+    @Data
+    public static class UpdateAuditStatusRequest {
+        private Integer auditStatus;
+        private Long auditorId;
+        private String auditRemark;
     }
 }

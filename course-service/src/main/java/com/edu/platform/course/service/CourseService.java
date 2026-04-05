@@ -100,6 +100,15 @@ public interface CourseService extends IService<Course> {
      *
      * @param courseId    课程 ID
      * @param auditStatus 审核状态: 0=待审核, 1=通过, 2=拒绝
+     * @param auditorId   审核人 ID
+     * @param auditRemark 审核备注
      */
-    void updateCourseAuditStatus(Long courseId, Integer auditStatus);
+    void updateCourseAuditStatus(Long courseId, Integer auditStatus, Long auditorId, String auditRemark);
+
+    /**
+     * 获取课程简单信息 (审核展示用)
+     * @param courseId 课程号
+     * @return 标题、教师、封面
+     */
+    java.util.Map<String, Object> getCourseInfo(Long courseId);
 }

@@ -34,6 +34,12 @@ public class ResourceInternalController {
         return Result.success();
     }
 
+    @Operation(summary = "获取资源详情 (用于审核展示)")
+    @GetMapping("/{resourceId}/info")
+    public Result<java.util.Map<String, Object>> getResourceInfo(@PathVariable Long resourceId) {
+        return Result.success(resourceService.getResourceInfo(resourceId));
+    }
+
     /**
      * 批量获取资源信息（由course-service调用）
      */
@@ -46,6 +52,12 @@ public class ResourceInternalController {
         }
         
         return Result.success(resourceService.listResponsesByIds(resourceIds));
+    }
+
+    @Operation(summary = "获取资源统计信息 (内部调用)")
+    @GetMapping("/stats")
+    public Result<java.util.Map<String, Object>> getResourceStats() {
+        return Result.success(resourceService.getResourceStats());
     }
 
     @Data

@@ -71,10 +71,14 @@ public class AuditRequestListener {
                 record.setAiConfidence(new BigDecimal("0.85"));
             }
 
-            auditRecordMapper.insert(record);
-
-            log.info("审核记录创建成功: recordId={}, contentType={}, contentId={}",
-                    record.getId(), message.getContentType(), message.getContentId());
+            try {
+                auditRecordMapper.insert(record);
+                log.info("审核记录创建成功: recordId={}, contentType={}, contentId={}",
+                        record.getId(), message.getContentType(), message.getContentId());
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                log.warn("并发冲突：记录已被其他请求（如Feign）抢先创建: contentType={}, contentId={}",
+                        message.getContentType(), message.getContentId());
+            }
 
         } catch (Exception e) {
             log.error("处理审核请求失败: contentType={}, contentId={}, error={}",

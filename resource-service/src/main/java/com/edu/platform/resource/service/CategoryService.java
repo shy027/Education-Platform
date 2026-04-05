@@ -50,5 +50,13 @@ public interface CategoryService {
      * @param id 分类ID
      */
     void deleteCategory(Long id);
+
+    /**
+     * 更新状态
+     *
+     * @param id 分类ID
+     * @param status 状态
+     */
+    void updateStatus(Long id, Integer status);
     
 }

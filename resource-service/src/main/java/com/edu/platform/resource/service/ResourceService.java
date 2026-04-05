@@ -138,4 +138,11 @@ public interface ResourceService {
      * @return 统计集
      */
     java.util.Map<String, Object> getResourceStats();
+
+    /**
+     * 获取资源简单信息 (审核专用)
+     * @param resourceId 资源ID
+     * @return 资源标题、简介、创建人等
+     */
+    java.util.Map<String, Object> getResourceInfo(Long resourceId);
 }

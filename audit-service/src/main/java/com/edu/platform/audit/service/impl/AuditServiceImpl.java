@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.edu.platform.audit.client.CommunityClient;
 import com.edu.platform.audit.client.CourseClient;
 import com.edu.platform.audit.client.ResourceClient;
+import com.edu.platform.audit.client.UserServiceClient;
 import com.edu.platform.audit.dto.feign.CommentInfoDTO;
 import com.edu.platform.audit.dto.feign.PostInfoDTO;
 import com.edu.platform.audit.dto.feign.UpdateAuditStatusRequest;
@@ -24,8 +25,8 @@ import com.edu.platform.audit.service.AuditService;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,13 +41,25 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AuditServiceImpl implements AuditService {
     
     private final AuditRecordMapper auditRecordMapper;
     private final CourseClient courseClient;
     private final CommunityClient communityClient;
     private final ResourceClient resourceClient;
+    private final UserServiceClient userServiceClient;
+
+    public AuditServiceImpl(AuditRecordMapper auditRecordMapper, 
+                            @Lazy CourseClient courseClient, 
+                            @Lazy CommunityClient communityClient, 
+                            @Lazy ResourceClient resourceClient, 
+                            @Lazy UserServiceClient userServiceClient) {
+        this.auditRecordMapper = auditRecordMapper;
+        this.courseClient = courseClient;
+        this.communityClient = communityClient;
+        this.resourceClient = resourceClient;
+        this.userServiceClient = userServiceClient;
+    }
     
     @Override
     public PageResult<AuditRecordVO> getPendingList(AuditQueryRequest request) {
@@ -72,9 +85,54 @@ public class AuditServiceImpl implements AuditService {
         
         Page<AuditRecord> resultPage = auditRecordMapper.selectPage(page, wrapper);
         
-        List<AuditRecordVO> voList = resultPage.getRecords().stream()
+        List<AuditRecord> records = resultPage.getRecords();
+        if (records.isEmpty()) {
+            return new PageResult<>(resultPage.getTotal(), new java.util.ArrayList<>());
+        }
+
+        // 收集所有关联的用户ID (审核者)
+        java.util.Set<Long> userIds = new java.util.HashSet<>();
+        records.forEach(r -> {
+            if (r.getAuditorId() != null) userIds.add(r.getAuditorId());
+        });
+
+        // 第一次遍历构建基础VO并获取内容详情
+        List<AuditRecordVO> voList = records.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
+
+        // 收集 VO 中的所有 creatorId
+        voList.forEach(v -> {
+            if (v.getCreatorId() != null) userIds.add(v.getCreatorId());
+        });
+
+        // 批量查询用户信息
+        java.util.Map<Long, java.util.Map<String, Object>> userMap = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) {
+            try {
+                Result<java.util.Map<Long, java.util.Map<String, Object>>> userResult = 
+                    userServiceClient.batchGetUserInfo(new java.util.ArrayList<>(userIds));
+                if (userResult != null && userResult.isSuccess()) {
+                    userMap = userResult.getData();
+                }
+            } catch (Exception e) {
+                log.warn("批量获取用户信息失败: {}", e.getMessage());
+            }
+        }
+
+        // 填充姓名
+        for (AuditRecordVO vo : voList) {
+            if (vo.getCreatorId() != null && userMap.containsKey(vo.getCreatorId())) {
+                Object name = userMap.get(vo.getCreatorId()).get("realName");
+                if (name == null) name = userMap.get(vo.getCreatorId()).get("username");
+                vo.setCreatorName(String.valueOf(name));
+            }
+            if (vo.getAuditorId() != null && userMap.containsKey(vo.getAuditorId())) {
+                Object name = userMap.get(vo.getAuditorId()).get("realName");
+                if (name == null) name = userMap.get(vo.getAuditorId()).get("username");
+                vo.setAuditorName(String.valueOf(name));
+            }
+        }
         
         return new PageResult<>(resultPage.getTotal(), voList);
     }
@@ -170,9 +228,48 @@ public class AuditServiceImpl implements AuditService {
         
         Page<AuditRecord> resultPage = auditRecordMapper.selectPage(page, wrapper);
         
-        List<AuditRecordVO> voList = resultPage.getRecords().stream()
+        List<AuditRecord> records = resultPage.getRecords();
+        if (records.isEmpty()) {
+            return new PageResult<>(resultPage.getTotal(), new java.util.ArrayList<>());
+        }
+
+        // 收集所有关联的用户ID (审核者)
+        java.util.Set<Long> userIds = new java.util.HashSet<>();
+        records.forEach(r -> {
+            if (r.getAuditorId() != null) userIds.add(r.getAuditorId());
+        });
+
+        List<AuditRecordVO> voList = records.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
+
+        voList.forEach(v -> {
+            if (v.getCreatorId() != null) userIds.add(v.getCreatorId());
+        });
+
+        if (!userIds.isEmpty()) {
+            try {
+                Result<java.util.Map<Long, java.util.Map<String, Object>>> userResult = 
+                    userServiceClient.batchGetUserInfo(new java.util.ArrayList<>(userIds));
+                if (userResult != null && userResult.isSuccess()) {
+                    java.util.Map<Long, java.util.Map<String, Object>> userMap = userResult.getData();
+                    for (AuditRecordVO vo : voList) {
+                        if (vo.getCreatorId() != null && userMap.containsKey(vo.getCreatorId())) {
+                            Object name = userMap.get(vo.getCreatorId()).get("realName");
+                            if (name == null) name = userMap.get(vo.getCreatorId()).get("username");
+                            vo.setCreatorName(String.valueOf(name));
+                        }
+                        if (vo.getAuditorId() != null && userMap.containsKey(vo.getAuditorId())) {
+                            Object name = userMap.get(vo.getAuditorId()).get("realName");
+                            if (name == null) name = userMap.get(vo.getAuditorId()).get("username");
+                            vo.setAuditorName(String.valueOf(name));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("历史记录批量获取用户信息失败: {}", e.getMessage());
+            }
+        }
         
         return new PageResult<>(resultPage.getTotal(), voList);
     }
@@ -230,10 +327,6 @@ public class AuditServiceImpl implements AuditService {
         // 通过Feign调用获取内容详情
         fetchContentDetails(record, vo);
         
-        // TODO: 获取审核人和创建者姓名(需要user-service的Feign客户端)
-        // vo.setCreatorName(...);
-        // vo.setAuditorName(...);
-        
         return vo;
     }
     
@@ -252,6 +345,7 @@ public class AuditServiceImpl implements AuditService {
                     java.util.Map<String, Object> courseReq = new java.util.HashMap<>();
                     courseReq.put("auditStatus", auditResult);
                     courseReq.put("auditorId", auditorId);
+                    courseReq.put("auditRemark", auditReason); // 使用 auditRemark 键名
                     courseClient.updateAuditStatus(contentId, courseReq);
                     log.info("更新课程审核状态成功: contentId={}, auditResult={}", contentId, auditResult);
                     break;
@@ -288,9 +382,28 @@ public class AuditServiceImpl implements AuditService {
         try {
             switch (record.getContentType()) {
                 case "COURSE":
-                    // 课程暂不提供详情接口，仅设置基本标识
-                    vo.setContentTitle("课程 #" + record.getContentId());
-                    vo.setContentPreview("ID: " + record.getContentId());
+                    Result<java.util.Map<String, Object>> courseResult = courseClient.getCourseInfo(record.getContentId());
+                    if (courseResult != null && courseResult.isSuccess() && courseResult.getData() != null) {
+                        java.util.Map<String, Object> info = courseResult.getData();
+                        vo.setContentTitle((String) info.get("courseName"));
+                        vo.setContentPreview((String) info.get("description"));
+                        vo.setCreatorId(info.get("teacherId") != null ? Long.valueOf(info.get("teacherId").toString()) : null);
+                        vo.setCreatorName((String) info.get("teacherName"));
+                    } else {
+                        vo.setContentTitle("课程 #" + record.getContentId());
+                    }
+                    break;
+                case "RESOURCE":
+                    Result<java.util.Map<String, Object>> resourceResult = resourceClient.getResourceInfo(record.getContentId());
+                    if (resourceResult != null && resourceResult.isSuccess() && resourceResult.getData() != null) {
+                        java.util.Map<String, Object> info = resourceResult.getData();
+                        vo.setContentTitle((String) info.get("title"));
+                        vo.setContentPreview((String) info.get("summary"));
+                        vo.setCreatorId(info.get("creatorId") != null ? Long.valueOf(info.get("creatorId").toString()) : null);
+                        vo.setCreatorName((String) info.get("creatorName"));
+                    } else {
+                        vo.setContentTitle("资源 #" + record.getContentId());
+                    }
                     break;
                 case "POST":
                     Result<PostInfoDTO> postResult = 
@@ -418,8 +531,13 @@ public class AuditServiceImpl implements AuditService {
             record.setContentId(contentId);
             record.setAuditResult(0); // 待审核
             record.setCreatedTime(LocalDateTime.now());
-            auditRecordMapper.insert(record);
-            log.info("已创建全新待审核记录: contentType={}, contentId={}", contentType, contentId);
+            try {
+                auditRecordMapper.insert(record);
+                log.info("已创建全新待审核记录: contentType={}, contentId={}", contentType, contentId);
+            } catch (org.springframework.dao.DuplicateKeyException e) {
+                log.warn("并发冲突：记录已被其他请求（如MQ）抢先创建: contentType={}, contentId={}", contentType, contentId);
+                // 既然已存在，直接返回成功即可
+            }
         }
     }
 }

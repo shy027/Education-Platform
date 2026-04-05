@@ -150,6 +150,17 @@ public class CategoryServiceImpl implements CategoryService {
         return BeanUtil.copyProperties(entity, CategoryResponse.class);
     }
     
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateStatus(Long id, Integer status) {
+        ResourceCategory category = categoryMapper.selectById(id);
+        if (category == null) {
+            throw new BusinessException("分类不存在");
+        }
+        category.setStatus(status);
+        categoryMapper.updateById(category);
+    }
+    
     /**
      * 检查名称是否重复
      */

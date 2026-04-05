@@ -24,8 +24,8 @@ import com.edu.platform.resource.entity.*;
 import com.edu.platform.resource.mapper.*;
 import com.edu.platform.resource.service.ResourceService;
 import com.edu.platform.resource.mq.AuditRequestSender;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,7 +42,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ResourceServiceImpl implements ResourceService {
     
     private final ResourceMapper resourceMapper;
@@ -52,6 +51,22 @@ public class ResourceServiceImpl implements ResourceService {
     private final ResourceCategoryMapper categoryMapper;
     private final AuditClient auditClient;
     private final UserClient userClient;
+
+    public ResourceServiceImpl(ResourceMapper resourceMapper, 
+                               ResourceAttachmentMapper attachmentMapper, 
+                               ResourceTagRelationMapper tagRelationMapper, 
+                               ResourceTagMapper tagMapper, 
+                               ResourceCategoryMapper categoryMapper, 
+                               @Lazy AuditClient auditClient, 
+                               @Lazy UserClient userClient) {
+        this.resourceMapper = resourceMapper;
+        this.attachmentMapper = attachmentMapper;
+        this.tagRelationMapper = tagRelationMapper;
+        this.tagMapper = tagMapper;
+        this.categoryMapper = categoryMapper;
+        this.auditClient = auditClient;
+        this.userClient = userClient;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private AuditRequestSender auditRequestSender;
@@ -748,5 +763,36 @@ public class ResourceServiceImpl implements ResourceService {
             }
         }
         return result;
+    }
+
+    @Override
+    public java.util.Map<String, Object> getResourceInfo(Long resourceId) {
+        Resource resource = resourceMapper.selectById(resourceId);
+        if (resource == null) {
+            return Collections.emptyMap();
+        }
+
+        java.util.Map<String, Object> info = new java.util.HashMap<>();
+        info.put("id", resource.getId());
+        info.put("title", resource.getTitle());
+        info.put("summary", resource.getSummary());
+        info.put("resourceType", resource.getResourceType());
+        info.put("creatorId", resource.getCreatorId());
+
+        // 获取创建人姓名
+        try {
+            Result<java.util.Map<Long, com.edu.platform.resource.dto.feign.UserManageDTO>> userResult = 
+                userClient.batchGetUserInfo(Collections.singletonList(resource.getCreatorId()));
+            if (userResult != null && userResult.isSuccess() && userResult.getData() != null) {
+                com.edu.platform.resource.dto.feign.UserManageDTO user = userResult.getData().get(resource.getCreatorId());
+                if (user != null) {
+                    info.put("creatorName", cn.hutool.core.util.StrUtil.isNotBlank(user.getRealName()) ? user.getRealName() : user.getUsername());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("获取资源创建人信息失败: {}", e.getMessage());
+        }
+
+        return info;
     }
 }

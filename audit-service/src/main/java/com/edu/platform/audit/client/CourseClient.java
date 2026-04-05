@@ -37,7 +37,9 @@ public interface CourseClient {
      * @param courseId 课程ID
      * @return 课程信息
      */
+    @GetMapping("/{courseId}/info")
+    Result<Map<String, Object>> getCourseInfo(@PathVariable("courseId") Long courseId);
+
     @GetMapping("/stats")
     Result<Map<String, Object>> getStats();
-    
 }

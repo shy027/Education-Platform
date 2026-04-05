@@ -57,4 +57,8 @@ public class CategoryResponse {
      */
     private List<CategoryResponse> children;
     
+    /**
+     * 创建时间
+     */
+    private java.time.LocalDateTime createdTime;
 }

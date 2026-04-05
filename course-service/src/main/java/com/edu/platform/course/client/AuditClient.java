@@ -30,5 +30,5 @@ public interface AuditClient {
      * 上报人工审核结果
      */
     @PostMapping("/manual/record")
-    Result<Void> recordManualAudit(@RequestBody Map<String, Object> request);
+    Result<Void> recordManualAudit(@RequestBody com.edu.platform.course.dto.request.CourseManualAuditRequest request);
 }

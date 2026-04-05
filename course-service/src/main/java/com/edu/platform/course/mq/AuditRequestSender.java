@@ -8,8 +8,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * 审核请求消息发送者
- * 课件上传后发送消息给audit-service自动创建审核记录
+ * 审核请求消息发送者 - course-service
  *
  * @author Education Platform
  */
@@ -21,18 +20,44 @@ public class AuditRequestSender {
     private final RabbitTemplate rabbitTemplate;
 
     /**
-     * 发送课件审核请求
+     * 教师提交课程审核
      *
-     * @param coursewareId  课件ID
-     * @param creatorId     创建者ID
-     * @param title         课件标题
-     * @param preview       预览内容(描述)
-     * @param initialResult 初始审核结果: 0-待审核, 1-默认通过
-     * @param auditReason   审核原因
+     * @param courseId  课程ID
+     * @param teacherId 教师ID
+     * @param title     课程标题
+     * @param summary   课程摘要
      */
-    public void sendCoursewareAuditRequest(Long coursewareId, Long creatorId,
-                                            String title, String preview,
-                                            Integer initialResult, String auditReason) {
+    public void sendCourseAuditRequest(Long courseId, Long teacherId, String title, String summary) {
+        String preview = summary != null && summary.length() > 100
+                ? summary.substring(0, 100) + "..."
+                : summary;
+
+        AuditRequestMessage message = AuditRequestMessage.builder()
+                .contentType("COURSE")
+                .contentId(courseId)
+                .creatorId(teacherId)
+                .contentTitle(title)
+                .contentPreview(preview)
+                .initialAuditResult(0)   // 待人工审核
+                .build();
+        sendAuditRequest(message);
+    }
+
+    /**
+     * 课件上传/更新审核（通常为自动审核）
+     *
+     * @param coursewareId 课件ID
+     * @param creatorId    创建者ID
+     * @param title        课件标题
+     * @param summary      课件摘要/描述
+     * @param initialResult 初始审核结果: 0-待定, 1-通过, 2-不通过
+     * @param reason       原因
+     */
+    public void sendCoursewareAuditRequest(Long coursewareId, Long creatorId, String title, String summary, Integer initialResult, String reason) {
+        String preview = summary != null && summary.length() > 100
+                ? summary.substring(0, 100) + "..."
+                : summary;
+
         AuditRequestMessage message = AuditRequestMessage.builder()
                 .contentType("COURSEWARE")
                 .contentId(coursewareId)
@@ -40,15 +65,13 @@ public class AuditRequestSender {
                 .contentTitle(title)
                 .contentPreview(preview)
                 .initialAuditResult(initialResult)
-                .auditReason(auditReason)
+                .auditReason(reason)
                 .build();
         sendAuditRequest(message);
     }
 
     /**
      * 发送审核请求消息
-     *
-     * @param message 审核请求消息
      */
     public void sendAuditRequest(AuditRequestMessage message) {
         try {
@@ -57,12 +80,11 @@ public class AuditRequestSender {
                     RabbitMQConfig.AUDIT_REQUEST_ROUTING_KEY,
                     message
             );
-            log.info("发送审核请求成功: contentType={}, contentId={}",
+            log.info("发送课程审核请求成功: contentType={}, contentId={}",
                     message.getContentType(), message.getContentId());
         } catch (Exception e) {
-            log.error("发送审核请求失败: contentType={}, contentId={}, error={}",
+            log.error("发送课程审核请求失败: contentType={}, contentId={}, error={}",
                     message.getContentType(), message.getContentId(), e.getMessage(), e);
-            // 发送失败不影响主流程,仅记录日志
         }
     }
 }

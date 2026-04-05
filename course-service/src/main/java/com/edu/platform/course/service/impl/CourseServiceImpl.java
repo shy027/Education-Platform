@@ -8,23 +8,21 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.ResultCode;
+import com.edu.platform.common.result.Result;
 import com.edu.platform.common.utils.UserContext;
-import com.edu.platform.course.dto.request.CourseAuditRequest;
-import com.edu.platform.course.dto.request.CourseCreateRequest;
-import com.edu.platform.course.dto.request.CourseQueryRequest;
-import com.edu.platform.course.dto.request.CourseUpdateRequest;
+import com.edu.platform.course.client.UserServiceClient;
+import com.edu.platform.course.dto.UserInfoDTO;
+import com.edu.platform.course.dto.request.*;
 import com.edu.platform.course.dto.response.CourseDetailResponse;
 import com.edu.platform.course.dto.response.CourseListResponse;
 import com.edu.platform.course.entity.Course;
 import com.edu.platform.course.mapper.CourseMapper;
+import com.edu.platform.course.mq.AuditRequestSender;
 import com.edu.platform.course.service.CourseService;
 import com.edu.platform.course.service.SubjectCategoryService;
-import com.edu.platform.course.client.UserServiceClient;
-import com.edu.platform.course.dto.UserInfoDTO;
-import com.edu.platform.common.result.Result;
 import com.edu.platform.course.util.PermissionUtil;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,12 +38,22 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> implements CourseService {
 
     private final SubjectCategoryService subjectCategoryService;
     private final UserServiceClient userServiceClient;
     private final com.edu.platform.course.client.AuditClient auditClient;
+    private final AuditRequestSender auditRequestSender;
+
+    public CourseServiceImpl(SubjectCategoryService subjectCategoryService, 
+                             @Lazy UserServiceClient userServiceClient, 
+                             @Lazy com.edu.platform.course.client.AuditClient auditClient,
+                             AuditRequestSender auditRequestSender) {
+        this.subjectCategoryService = subjectCategoryService;
+        this.userServiceClient = userServiceClient;
+        this.auditClient = auditClient;
+        this.auditRequestSender = auditRequestSender;
+    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -401,17 +409,14 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         this.updateById(course);
 
         // 同步到中央审核中心
-        try {
-            java.util.Map<String, Object> auditRecord = new java.util.HashMap<>();
-            auditRecord.put("contentType", "COURSE");
-            auditRecord.put("contentId", id);
-            auditRecord.put("auditResult", isApproved ? 1 : 2);
-            auditRecord.put("auditReason", request.getAuditRemark());
-            auditRecord.put("auditorId", currentUserId);
-            auditClient.recordManualAudit(auditRecord);
-        } catch (Exception e) {
-            log.error("同步审核结果到审核中心失败: {}", e.getMessage());
-        }
+        CourseManualAuditRequest auditRecordRequest = CourseManualAuditRequest.builder()
+                .contentType("COURSE")
+                .contentId(id)
+                .auditResult(isApproved ? 1 : 2)
+                .auditReason(request.getAuditRemark())
+                .auditorId(currentUserId)
+                .build();
+        auditClient.recordManualAudit(auditRecordRequest);
     }
 
     @Override
@@ -438,12 +443,11 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         course.setAuditStatus(0); // 待审核
         this.updateById(course);
 
-        // 同步到中央审核中心
-        try {
-            auditClient.submitAuditRequest("COURSE", id);
-        } catch (Exception e) {
-            log.error("提交课程审核申请到审核中心失败: {}", e.getMessage());
-        }
+        // 1. 发送 MQ 消息异步创建审核记录（推荐方式，包含更多元数据）
+        auditRequestSender.sendCourseAuditRequest(id, course.getTeacherId(), course.getCourseName(), course.getCourseIntro());
+
+        // 2. 同步调用 Feign 接口（双重保证）
+        auditClient.submitAuditRequest("COURSE", id);
     }
 
     @Override
@@ -512,14 +516,55 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateCourseAuditStatus(Long courseId, Integer auditStatus) {
+    public void updateCourseAuditStatus(Long courseId, Integer auditStatus, Long auditorId, String auditRemark) {
         Course course = this.getById(courseId);
         if (course == null) {
             log.warn("审核回调：课程不存在, courseId={}", courseId);
             return;
         }
         course.setAuditStatus(auditStatus);
+        course.setAuditorId(auditorId);
+        course.setAuditRemark(auditRemark);
+        course.setAuditTime(LocalDateTime.now());
+
+        if (auditStatus == 1) {
+            // 通过审核 -> 开放课程
+            course.setStatus(1);
+        } else if (auditStatus == 2) {
+            // 审核拒绝 -> 关闭课程
+            course.setStatus(0);
+        }
+
         this.updateById(course);
-        log.info("课程审核状态已更新(内部回调): courseId={}, auditStatus={}", courseId, auditStatus);
+        log.info("课程审核状态已更新(内部回调): courseId={}, auditStatus={}, auditorId={}", courseId, auditStatus, auditorId);
+    }
+
+    @Override
+    public java.util.Map<String, Object> getCourseInfo(Long courseId) {
+        Course course = this.getById(courseId);
+        if (course == null) {
+            return Collections.emptyMap();
+        }
+
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("id", course.getId());
+        result.put("courseName", course.getCourseName());
+        result.put("description", course.getCourseIntro());
+        result.put("cover", course.getCourseCover());
+        result.put("teacherId", course.getTeacherId());
+
+        // 获取教师姓名
+        try {
+            Result<java.util.Map<Long, com.edu.platform.course.dto.UserInfoDTO>> userResult = 
+                userServiceClient.batchGetUserInfo(Collections.singletonList(course.getTeacherId()));
+            if (userResult.isSuccess() && userResult.getData() != null && userResult.getData().containsKey(course.getTeacherId())) {
+                com.edu.platform.course.dto.UserInfoDTO teacher = userResult.getData().get(course.getTeacherId());
+                result.put("teacherName", StrUtil.isNotBlank(teacher.getRealName()) ? teacher.getRealName() : teacher.getUsername());
+            }
+        } catch (Exception e) {
+            log.error("获取审核用教师信息失败: {}", e.getMessage());
+        }
+
+        return result;
     }
 }
