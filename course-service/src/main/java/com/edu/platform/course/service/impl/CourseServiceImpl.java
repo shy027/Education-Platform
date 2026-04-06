@@ -27,7 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -156,7 +155,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         
         // 权限校验：根据用户角色过滤
         boolean isAdmin = PermissionUtil.isAdminOrLeader();
-        boolean isTeacher = course.getTeacherId().equals(currentUserId);
+        boolean isTeacher = String.valueOf(course.getTeacherId()).equals(String.valueOf(currentUserId));
         
         // 普通用户只能看已审核且开放或已结课的课程
         if (!isAdmin && !isTeacher) {
@@ -211,8 +210,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
                 // 暂未开放: startTime > now
                 wrapper.gt(Course::getStartTime, now);
             } else if (request.getStatus() == 1) {
-                // 进行中: (startTime <= now or null) AND (endTime > now or null)
-                wrapper.and(w -> w.isNull(Course::getStartTime).or().le(Course::getStartTime, now))
+                // 进行中: (startTime <= now or null) AND (endTime > now or null) AND 基础状态为开放(1)
+                wrapper.eq(Course::getStatus, 1)
+                       .and(w -> w.isNull(Course::getStartTime).or().le(Course::getStartTime, now))
                        .and(w -> w.isNull(Course::getEndTime).or().gt(Course::getEndTime, now));
             } else if (request.getStatus() == 2) {
                 // 已结课: endTime <= now
@@ -220,12 +220,18 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
             }
         }
         
-        // 数据过滤：普通用户只能看已审核，且原状态为 1(开放) 或 2(归档) 的课程
+        // 数据过滤：普通用户在前台公开目录只能看已审核且未结课的课程
         if (!isAdmin) {
             // 如果是教师查询自己的课程，不过滤
             if (request.getTeacherId() == null || !request.getTeacherId().equals(currentUserId)) {
                 wrapper.eq(Course::getAuditStatus, 1)
-                       .in(Course::getStatus, Arrays.asList(1, 2));
+                       .eq(Course::getStatus, 1); // 仅限开放状态，排除归档(2)
+                
+                // 如果未显式指定查询“已结课”，则默认过滤掉时间已截止的课程
+                if (request.getStatus() == null || request.getStatus() != 2) {
+                    LocalDateTime now = LocalDateTime.now();
+                    wrapper.and(w -> w.isNull(Course::getEndTime).or().gt(Course::getEndTime, now));
+                }
             }
         }
         
@@ -311,7 +317,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         
         // 权限校验：只有管理员或校领导可以查看待审核课程
         if (!PermissionUtil.isAdminOrLeader()) {
-            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权查看待审核课程");
+            throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权审核课程");
         }
         
         Page<Course> page = new Page<>(request.getPageNum(), request.getPageSize());
@@ -444,7 +450,7 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         this.updateById(course);
 
         // 1. 发送 MQ 消息异步创建审核记录（推荐方式，包含更多元数据）
-        auditRequestSender.sendCourseAuditRequest(id, course.getTeacherId(), course.getCourseName(), course.getCourseIntro());
+        auditRequestSender.sendCourseAuditRequest(id, currentUserId, course.getCourseName(), course.getCourseIntro());
 
         // 2. 同步调用 Feign 接口（双重保证）
         auditClient.submitAuditRequest("COURSE", id);

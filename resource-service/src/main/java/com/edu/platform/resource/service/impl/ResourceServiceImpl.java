@@ -574,6 +574,26 @@ public class ResourceServiceImpl implements ResourceService {
         
         log.info("下架资源成功: resourceId={}, userId={}", resourceId, userId);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void onlineResource(Long resourceId, Long userId) {
+        Resource resource = resourceMapper.selectById(resourceId);
+        if (resource == null) {
+            throw new BusinessException("资源不存在");
+        }
+        
+        // 状态检查
+        if (resource.getStatus() != 4) {
+            throw new BusinessException("只有已下架的资源才能重新上架");
+        }
+        
+        // 更新状态
+        resource.setStatus(2); // 已发布
+        resourceMapper.updateById(resource);
+        
+        log.info("重新上架资源成功: resourceId={}, userId={}", resourceId, userId);
+    }
     
     @Override
     @Transactional(rollbackFor = Exception.class)

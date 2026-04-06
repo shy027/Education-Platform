@@ -156,5 +156,14 @@ public class ResourceController {
         resourceService.offlineResource(id, userId);
         return Result.success();
     }
+
+    @Operation(summary = "上架资源")
+    @PostMapping("/{id}/online")
+    @RequireAdminOrLeader
+    public Result<Void> onlineResource(@PathVariable Long id) {
+        Long userId = UserContext.getUserId();
+        resourceService.onlineResource(id, userId);
+        return Result.success();
+    }
     
 }

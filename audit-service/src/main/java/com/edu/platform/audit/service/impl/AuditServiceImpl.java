@@ -125,12 +125,16 @@ public class AuditServiceImpl implements AuditService {
             if (vo.getCreatorId() != null && userMap.containsKey(vo.getCreatorId())) {
                 Object name = userMap.get(vo.getCreatorId()).get("realName");
                 if (name == null) name = userMap.get(vo.getCreatorId()).get("username");
-                vo.setCreatorName(String.valueOf(name));
+                if (name != null) {
+                    vo.setCreatorName(String.valueOf(name));
+                }
             }
             if (vo.getAuditorId() != null && userMap.containsKey(vo.getAuditorId())) {
                 Object name = userMap.get(vo.getAuditorId()).get("realName");
                 if (name == null) name = userMap.get(vo.getAuditorId()).get("username");
-                vo.setAuditorName(String.valueOf(name));
+                if (name != null) {
+                    vo.setAuditorName(String.valueOf(name));
+                }
             }
         }
         
@@ -257,12 +261,16 @@ public class AuditServiceImpl implements AuditService {
                         if (vo.getCreatorId() != null && userMap.containsKey(vo.getCreatorId())) {
                             Object name = userMap.get(vo.getCreatorId()).get("realName");
                             if (name == null) name = userMap.get(vo.getCreatorId()).get("username");
-                            vo.setCreatorName(String.valueOf(name));
+                            if (name != null) {
+                                vo.setCreatorName(String.valueOf(name));
+                            }
                         }
                         if (vo.getAuditorId() != null && userMap.containsKey(vo.getAuditorId())) {
                             Object name = userMap.get(vo.getAuditorId()).get("realName");
                             if (name == null) name = userMap.get(vo.getAuditorId()).get("username");
-                            vo.setAuditorName(String.valueOf(name));
+                            if (name != null) {
+                                vo.setAuditorName(String.valueOf(name));
+                            }
                         }
                     }
                 }
@@ -441,6 +449,12 @@ public class AuditServiceImpl implements AuditService {
      * 截断文本
      */
     private String truncate(String text, int maxLength) {
+        if (text == null) {
+            return "";
+        }
+        if (text.length() <= maxLength) {
+            return text;
+        }
         return text.substring(0, maxLength) + "...";
     }
 
@@ -459,6 +473,18 @@ public class AuditServiceImpl implements AuditService {
                 .ne(AuditRecord::getAuditResult, AuditResult.PENDING.getCode())
                 .ge(AuditRecord::getAuditTime, todayStart));
         stats.put("processedToday", processedToday);
+
+        // 今日已通过
+        Long todayApproved = auditRecordMapper.selectCount(new LambdaQueryWrapper<AuditRecord>()
+                .eq(AuditRecord::getAuditResult, 1) // 通过
+                .ge(AuditRecord::getAuditTime, todayStart));
+        stats.put("todayApproved", todayApproved);
+
+        // 今日已拒绝
+        Long todayRejected = auditRecordMapper.selectCount(new LambdaQueryWrapper<AuditRecord>()
+                .eq(AuditRecord::getAuditResult, 2) // 拒绝
+                .ge(AuditRecord::getAuditTime, todayStart));
+        stats.put("todayRejected", todayRejected);
         
         return stats;
     }

@@ -386,8 +386,26 @@ public class CommentServiceImpl implements CommentService {
         dto.setContent(comment.getCommentContent());
         dto.setAuthorId(comment.getUserId());
         
-        // TODO: 通过OpenFeign获取作者姓名
-        dto.setAuthorName("用户" + comment.getUserId());
+        // 获取作者姓名
+        if (userServiceClient != null) {
+            try {
+                Result<Map<Long, UserInfoDTO>> result = userServiceClient.batchGetUserInfo(
+                    java.util.Collections.singletonList(comment.getUserId())
+                );
+                if (result != null && result.isSuccess() && result.getData() != null) {
+                    UserInfoDTO userInfo = result.getData().get(comment.getUserId());
+                    if (userInfo != null) {
+                        dto.setAuthorName(userInfo.getRealName());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("审核获取评论作者姓名失败, userId={}", comment.getUserId(), e);
+            }
+        }
+        
+        if (dto.getAuthorName() == null) {
+            dto.setAuthorName("用户" + comment.getUserId());
+        }
         
         return dto;
     }

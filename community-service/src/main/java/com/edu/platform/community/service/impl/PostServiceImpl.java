@@ -496,8 +496,26 @@ public class PostServiceImpl implements PostService {
         dto.setContent(post.getPostContent());
         dto.setAuthorId(post.getUserId());
         
-        // TODO: 通过OpenFeign获取作者姓名
-        dto.setAuthorName("用户" + post.getUserId());
+        // 获取作者姓名
+        if (userServiceClient != null) {
+            try {
+                Result<Map<Long, UserInfoDTO>> result = userServiceClient.batchGetUserInfo(
+                    java.util.Collections.singletonList(post.getUserId())
+                );
+                if (result != null && result.isSuccess() && result.getData() != null) {
+                    UserInfoDTO userInfo = result.getData().get(post.getUserId());
+                    if (userInfo != null) {
+                        dto.setAuthorName(userInfo.getRealName());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("审核获取作者姓名失败, userId={}", post.getUserId(), e);
+            }
+        }
+        
+        if (dto.getAuthorName() == null) {
+            dto.setAuthorName("用户" + post.getUserId());
+        }
         
         return dto;
     }

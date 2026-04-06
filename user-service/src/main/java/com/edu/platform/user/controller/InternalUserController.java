@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,5 +40,11 @@ public class InternalUserController {
     public Result<Map<Long, com.edu.platform.user.dto.response.UserManageResponse>> batchGetUserInfo(
             @RequestBody java.util.List<Long> userIds) {
         return Result.success(userManageService.batchGetUserInfo(userIds));
+    }
+
+    @Operation(summary = "获取单个用户信息")
+    @GetMapping("/{userId}")
+    public Result<com.edu.platform.user.dto.response.UserManageResponse> getUserById(@PathVariable Long userId) {
+        return Result.success(userManageService.getUserDetail(userId));
     }
 }

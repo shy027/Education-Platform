@@ -16,7 +16,7 @@ import java.util.Map;
  *
  * @author Education Platform
  */
-@FeignClient(name = "user-service", path = "/api/v1/users/manage")
+@FeignClient(name = "user-service", path = "/internal/user")
 public interface UserServiceClient {
     
     /**

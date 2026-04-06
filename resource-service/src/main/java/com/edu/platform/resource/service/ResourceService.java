@@ -100,6 +100,15 @@ public interface ResourceService {
      * @param userId 用户ID
      */
     void offlineResource(Long resourceId, Long userId);
+
+    /**
+     * 上架资源
+     * 状态:已下架(4) → 已发布(2) 
+     * 
+     * @param resourceId 资源ID
+     * @param userId 用户ID
+     */
+    void onlineResource(Long resourceId, Long userId);
     
     /**
      * 获取审核历史
