@@ -100,15 +100,27 @@ public class UserManageController {
     @Operation(summary = "下载用户导入模板")
     @GetMapping("/template")
     @RequireAdminOrLeader
-    public void downloadTemplate(HttpServletResponse response) {
-        excelService.downloadUserTemplate(response);
+    public void downloadTemplate(jakarta.servlet.http.HttpServletRequest request, HttpServletResponse response) {
+        Long userId = (Long) request.getAttribute(com.edu.platform.common.constant.Constants.USER_ID);
+        Long schoolId = null;
+        if (com.edu.platform.user.security.SecurityUtils.hasRole("SCHOOL_LEADER")) {
+            schoolId = userManageService.getUserSchoolId(userId);
+        }
+        excelService.downloadUserTemplate(response, schoolId);
     }
     
     @Operation(summary = "批量导入用户")
     @PostMapping("/import")
     @RequireAdminOrLeader
-    public Result<Map<String, Object>> importUsers(@RequestParam("file") MultipartFile file) {
-        Map<String, Object> result = excelService.importUsers(file);
+    public Result<Map<String, Object>> importUsers(
+            jakarta.servlet.http.HttpServletRequest request,
+            @RequestParam("file") MultipartFile file) {
+        Long userId = (Long) request.getAttribute(com.edu.platform.common.constant.Constants.USER_ID);
+        Long schoolId = null;
+        if (com.edu.platform.user.security.SecurityUtils.hasRole("SCHOOL_LEADER")) {
+            schoolId = userManageService.getUserSchoolId(userId);
+        }
+        Map<String, Object> result = excelService.importUsers(file, schoolId);
         return Result.success("导入完成", result);
     }
     

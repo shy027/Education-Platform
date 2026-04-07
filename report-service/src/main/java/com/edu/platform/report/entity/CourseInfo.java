@@ -34,4 +34,9 @@ public class CourseInfo {
      * 主讲教师ID
      */
     private Long teacherId;
+    /**
+     * 维度权重配置 (JSON)
+     */
+    @com.baomidou.mybatisplus.annotation.TableField("dimension_weights")
+    private String dimensionWeights;
 }

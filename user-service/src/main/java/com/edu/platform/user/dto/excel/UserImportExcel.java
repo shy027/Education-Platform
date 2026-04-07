@@ -35,8 +35,8 @@ public class UserImportExcel {
     @ExcelProperty(value = "学号/工号", index = 7)
     private String studentNo;
     
-    @ExcelProperty(value = "学校ID", index = 8)
-    private String schoolId;
+    @ExcelProperty(value = "学校名称", index = 8)
+    private String schoolName;
     
     @ExcelProperty(value = "院系", index = 9)
     private String department;

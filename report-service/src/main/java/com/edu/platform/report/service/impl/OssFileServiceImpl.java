@@ -70,6 +70,10 @@ public class OssFileServiceImpl implements OssFileService {
         try {
             String objectName = extractObjectName(fileUrl);
             if (objectName != null) {
+                // 如果提取结果还是URL，说明解析逻辑可能有问题，打印警告
+                if (objectName.startsWith("http")) {
+                    log.warn("未能成功从URL中提取对象名称: {}", fileUrl);
+                }
                 ossClient.deleteObject(ossProperties.getBucketName(), objectName);
                 log.info("OSS文件删除成功: {}", objectName);
             }
@@ -108,15 +112,45 @@ public class OssFileServiceImpl implements OssFileService {
     }
     
     /**
-     * 从URL中提取objectName
+     * 从URL中提取objectName (鲁棒且解码版本)
      */
     private String extractObjectName(String fileUrl) {
-        // URL格式: https://bucket.endpoint/education/reports/courseId/file.pdf
-        String prefix = "https://" + ossProperties.getBucketName() + "." + 
-                       ossProperties.getEndpoint() + "/";
-        if (fileUrl.startsWith(prefix)) {
-            return fileUrl.substring(prefix.length());
+        if (fileUrl == null || fileUrl.isEmpty()) return null;
+        
+        String path = null;
+        try {
+            // 1. 如果不是URL开头(不包含://)，则认为已经是objectName
+            if (!fileUrl.contains("://")) {
+                path = fileUrl;
+            } else {
+                // 2. 尝试定位域名后的路径部分
+                String bucketEndpoint = ossProperties.getBucketName() + "." + ossProperties.getEndpoint();
+                int index = fileUrl.indexOf(bucketEndpoint);
+                
+                if (index != -1) {
+                    // 截取域名之后的部分
+                    path = fileUrl.substring(index + bucketEndpoint.length());
+                } else {
+                    // 3. 兼容兜底: 解析URI路径
+                    java.net.URI uri = new java.net.URI(fileUrl);
+                    path = uri.getPath();
+                }
+            }
+            
+            if (path == null) return null;
+            
+            // 4. 重要: URL解码 (处理文件名中的特殊字符或编码)
+            path = java.net.URLDecoder.decode(path, "UTF-8");
+            
+            // 5. 规范化: 去掉起始斜杠，处理双斜杠
+            while (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            return path.replace("//", "/");
+            
+        } catch (Exception e) {
+            log.error("解析OSS ObjectName失败: {}", fileUrl, e);
+            return null;
         }
-        return null;
     }
 }

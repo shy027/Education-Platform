@@ -17,16 +17,18 @@ public interface ExcelService {
      * 下载用户导入模板
      *
      * @param response HTTP响应
+     * @param schoolId 预填学校ID(可选,校领导时使用)
      */
-    void downloadUserTemplate(HttpServletResponse response);
+    void downloadUserTemplate(HttpServletResponse response, Long schoolId);
     
     /**
      * 导入用户
      *
      * @param file Excel文件
+     * @param currentSchoolId 当前操作者所属学校ID(若是校领导,则强制限制为此ID)
      * @return 导入结果
      */
-    Map<String, Object> importUsers(MultipartFile file);
+    Map<String, Object> importUsers(MultipartFile file, Long currentSchoolId);
     
     /**
      * 导出用户列表

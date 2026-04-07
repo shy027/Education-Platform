@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>课程思政教学成效报告</title>
+    <style>
+        body {
+            font-family: "SimSun", "STSong", serif;
+            margin: 40px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #007bff;
+            margin: 0;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .meta-info {
+            text-align: right;
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #444;
+            border-left: 5px solid #007bff;
+            padding-left: 10px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+            padding-top: 5px;
+            padding-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .chart-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .chart-container img {
+            max-width: 80%;
+            height: auto;
+        }
+        .warning {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 50px;
+            font-size: 10px;
+            color: #999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">课程思政教学成效报告</h1>
+        <div class="subtitle">Course Ideological Education Report</div>
+    </div>
+
+    <div class="meta-info">
+        生成时间：<span th:text="${#temporals.format(now, 'yyyy-MM-dd HH:mm:ss')}">2026-04-07 12:00:00</span>
+    </div>
+
+    <div class="section">
+        <div class="section-title">一、课程基本信息</div>
+        <table>
+            <tr>
+                <th width="30%">课程名称</th>
+                <td th:text="${courseName}">未知课程</td>
+            </tr>
+            <tr>
+                <th>授课教师</th>
+                <td th:text="${teacherName}">未知教师</td>
+            </tr>
+            <tr>
+                <th>学生人数</th>
+                <td th:text="${studentCount}">0</td>
+            </tr>
+            <tr>
+                <th>统计周期</th>
+                <td th:text="${reportPeriod}">最近30天</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">二、整体概况与对比分析</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>指标项</th>
+                    <th>当前数值</th>
+                    <th>对比/参考</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>班级平均分</td>
+                    <td th:text="${#numbers.formatDecimal(avgScore, 1, 2)}">0.00</td>
+                    <td th:text="'全校均分: ' + ${#numbers.formatDecimal(schoolAvgScore, 1, 2)}">全校均分: 0.00</td>
+                </tr>
+                <tr>
+                    <td>历史环比(30天)</td>
+                    <td th:text="${#numbers.formatDecimal(avgScore, 1, 2)}">0.00</td>
+                    <td th:text="${previousAvgScore != null ? (avgScore - previousAvgScore >= 0 ? '+' : '') + #numbers.formatDecimal(avgScore - previousAvgScore, 1, 2) : '无历史数据'}">无历史数据</td>
+                </tr>
+                <tr>
+                    <td>参与学生数</td>
+                    <td th:text="${activeStudents}">0</td>
+                    <td>-</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">三、课程维度分析</div>
+        <div class="chart-container">
+            <img th:if="${radarChart != null}" th:src="'data:image/png;base64,' + ${radarChart}" alt="雷达图"/>
+        </div>
+        <p th:if="${dimensionSummary != null}" th:text="${dimensionSummary}" style="font-size: 14px; margin-bottom: 15px; color: #555; background: #f9f9f9; padding: 10px; border-radius: 4px;"></p>
+        <table>
+            <tr>
+                <th>维度名称</th>
+                <th>平均得分</th>
+            </tr>
+            <tr th:each="entry : ${involvedDimensions}">
+                <td th:text="${entry.key}">维度名称</td>
+                <td th:text="${#numbers.formatDecimal(entry.value, 1, 2)}">0.00</td>
+            </tr>
+            <tr th:if="${#maps.isEmpty(involvedDimensions)}">
+                <td colspan="2" style="text-align: center;">本课程未设置评估维度或暂无评分数据</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">四、学习行为分析</div>
+        <div class="chart-container">
+            <img th:if="${barChart != null}" th:src="'data:image/png;base64,' + ${barChart}" alt="柱状图"/>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">五、优秀学生案例</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>排名</th>
+                    <th>学生姓名</th>
+                    <th>综合得分</th>
+                    <th>等级</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="student, iterStat : ${topStudents}">
+                    <td th:text="${iterStat.count}">1</td>
+                    <td th:text="${student.userName}">未知</td>
+                    <td th:text="${#numbers.formatDecimal(student.totalScore, 1, 2)}">0.00</td>
+                    <td th:text="${student.level}">未评定</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(topStudents)}">
+                    <td colspan="4" style="text-align: center;">暂无数据</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">六、重点关注学生预警</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>学生姓名</th>
+                    <th>综合得分</th>
+                    <th>预警原因</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="student : ${warningStudents}">
+                    <td th:text="${student.userName}">未知</td>
+                    <td th:text="${#numbers.formatDecimal(student.score, 1, 2)}" class="warning">0.00</td>
+                    <td th:text="${student.reason}">综合得分偏低</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(warningStudents)}">
+                    <td colspan="3" style="text-align: center;">暂无预警学生</td>
+                </tr>
+            </tbody>
+        </table>
+        <p th:if="${not #lists.isEmpty(warningStudents)}" class="warning" style="font-size: 12px;">
+            提示：建议关注以上预警学生，结合日常表现给予针对性思政教育指导。
+        </p>
+    </div>
+
+    <div class="footer">
+        © Education Platform - 智慧教育决策辅助系统
+    </div>
+</body>
+</html>

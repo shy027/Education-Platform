@@ -2,7 +2,6 @@ package com.edu.platform.report.controller;
 
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.Result;
-import com.edu.platform.common.utils.UserContext;
 import com.edu.platform.report.dto.ReportDTO;
 import com.edu.platform.report.dto.ReportListRequest;
 import com.edu.platform.report.dto.ReportStatusResponse;
@@ -34,17 +33,48 @@ public class ReportController {
      */
     @PostMapping("/course/{courseId}/generate")
     @Operation(summary = "生成课程报告", description = "生成指定课程的思政教学成效报告")
-    @PreAuthorize("hasAnyAuthority('ROLE_TEACHER', 'ROLE_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_TEACHER', 'ROLE_SCHOOL_LEADER', 'ROLE_ADMIN')")
     public Result<Long> generateCourseReport(
             @Parameter(description = "课程ID", required = true)
             @PathVariable Long courseId) {
         
         try {
-            Long userId = UserContext.getUserId();
+            Long userId = com.edu.platform.common.utils.UserContext.getUserId();
+            log.info("接收到生成课程报告请求: courseId={}, userId={}", courseId, userId);
+            
+            if (userId == null) {
+                log.error("生成报告失败: 无法获取当前登录用户ID (UserContext 为空)");
+                return Result.fail("无法获取用户信息，请重新登录");
+            }
+            
             Long reportId = reportService.generateCourseReport(courseId, userId);
+            log.info("课程报告生成成功: reportId={}, courseId={}, userId={}", reportId, courseId, userId);
             return Result.success(reportId);
         } catch (Exception e) {
             log.error("生成课程报告失败", e);
+            return Result.fail("生成报告失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 生成学校报告
+     */
+    @PostMapping("/school/{schoolId}/generate")
+    @Operation(summary = "生成学校报告", description = "按照指定时间范围生成学校全域思政建设成效报告")
+    @PreAuthorize("hasAnyAuthority('ROLE_SCHOOL_LEADER', 'ROLE_ADMIN')")
+    public Result<Long> generateSchoolReport(
+            @Parameter(description = "学校ID", required = true)
+            @PathVariable Long schoolId,
+            @Parameter(description = "开始时间(yyyy-MM-dd)", required = false)
+            @RequestParam(required = false) String startTime,
+            @Parameter(description = "结束时间(yyyy-MM-dd)", required = false)
+            @RequestParam(required = false) String endTime) {
+        
+        try {
+            Long reportId = reportService.generateSchoolReport(schoolId, startTime, endTime);
+            return Result.success(reportId);
+        } catch (Exception e) {
+            log.error("生成学校报告失败", e);
             return Result.fail("生成报告失败: " + e.getMessage());
         }
     }
@@ -74,12 +104,14 @@ public class ReportController {
     @Operation(summary = "下载报告", description = "获取报告的预签名下载URL(有效期1小时)")
     public Result<String> downloadReport(
             @Parameter(description = "报告ID", required = true)
-            @PathVariable Long reportId) {
+            @PathVariable Long reportId,
+            @Parameter(description = "报告类型(1=课程,2=学校)", required = false)
+            @RequestParam(required = false) Integer reportType) {
         
         try {
-            String downloadUrl = reportService.generateDownloadUrl(reportId);
+            String downloadUrl = reportService.generateDownloadUrl(reportId, reportType);
             // 增加下载次数
-            reportService.incrementDownloadCount(reportId);
+            reportService.incrementDownloadCount(reportId, reportType);
             return Result.success(downloadUrl);
         } catch (Exception e) {
             log.error("获取下载链接失败", e);
@@ -169,10 +201,12 @@ public class ReportController {
     @Operation(summary = "获取报告文件路径", description = "获取指定报告的OSS文件URL")
     public Result<String> getReportPath(
             @Parameter(description = "报告ID", required = true)
-            @PathVariable Long reportId) {
+            @PathVariable Long reportId,
+            @Parameter(description = "报告类型", required = false)
+            @RequestParam(required = false) Integer reportType) {
         
         try {
-            String filePath = reportService.getReportFilePath(reportId);
+            String filePath = reportService.getReportFilePath(reportId, reportType);
             return Result.success(filePath);
         } catch (Exception e) {
             log.error("获取报告路径失败", e);

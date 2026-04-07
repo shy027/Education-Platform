@@ -52,12 +52,21 @@ public class ExcelServiceImpl implements ExcelService {
     private final UserSchoolMemberMapper userSchoolMemberMapper;
     
     @Override
-    public void downloadUserTemplate(HttpServletResponse response) {
+    public void downloadUserTemplate(HttpServletResponse response, Long schoolId) {
         try {
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             response.setCharacterEncoding("utf-8");
             String fileName = URLEncoder.encode("用户导入模板", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
             response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+            
+            // 使用传入的 schoolId获取学校名称，若为空则默认 "测试学校"
+            String prefilledSchoolName = "测试学校";
+            if (schoolId != null) {
+                UserSchool school = userSchoolMapper.selectById(schoolId);
+                if (school != null) {
+                    prefilledSchoolName = school.getSchoolName();
+                }
+            }
             
             // 创建示例数据
             List<UserImportExcel> list = new ArrayList<>();
@@ -72,7 +81,7 @@ public class ExcelServiceImpl implements ExcelService {
             student.setGender("男");
             student.setRoleCode("STUDENT");
             student.setStudentNo("2024001");
-            student.setSchoolId("1");
+            student.setSchoolName(prefilledSchoolName);
             student.setDepartment("计算机学院");
             student.setClassName("软件2211");
             student.setMajor("软件工程");
@@ -88,7 +97,7 @@ public class ExcelServiceImpl implements ExcelService {
             teacher.setGender("女");
             teacher.setRoleCode("TEACHER");
             teacher.setStudentNo("T2024001");
-            teacher.setSchoolId("1");
+            teacher.setSchoolName(prefilledSchoolName);
             teacher.setDepartment("计算机学院");
             teacher.setClassName("");
             teacher.setMajor("");
@@ -106,7 +115,7 @@ public class ExcelServiceImpl implements ExcelService {
     
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Map<String, Object> importUsers(MultipartFile file) {
+    public Map<String, Object> importUsers(MultipartFile file, Long currentSchoolId) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "文件不能为空");
         }
@@ -119,7 +128,7 @@ public class ExcelServiceImpl implements ExcelService {
                 new PageReadListener<UserImportExcel>(dataList -> {
                     for (UserImportExcel data : dataList) {
                         try {
-                            importUser(data);
+                            importUser(data, currentSchoolId);
                             successList.add(data);
                         } catch (Exception e) {
                             errorList.add(data.getUsername() + ": " + e.getMessage());
@@ -134,8 +143,8 @@ public class ExcelServiceImpl implements ExcelService {
         
         Map<String, Object> result = new HashMap<>();
         result.put("successCount", successList.size());
-        result.put("errorCount", errorList.size());
-        result.put("errors", errorList);
+        result.put("failCount", errorList.size());
+        result.put("failDetails", errorList);
         
         return result;
     }
@@ -164,7 +173,7 @@ public class ExcelServiceImpl implements ExcelService {
     /**
      * 导入单个用户
      */
-    private void importUser(UserImportExcel data) {
+    private void importUser(UserImportExcel data, Long currentSchoolId) {
         // 验证必填字段
         if (StrUtil.isBlank(data.getUsername())) {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "用户名不能为空");
@@ -225,14 +234,22 @@ public class ExcelServiceImpl implements ExcelService {
         
         userAccountMapper.insert(user);
         
-        // 解析学校ID(用于角色关联)
+        // 解析学校ID(通过名称查询)
         Long schoolId = null;
-        if (StrUtil.isNotBlank(data.getSchoolId())) {
-            try {
-                schoolId = Long.parseLong(data.getSchoolId());
-            } catch (NumberFormatException e) {
-                log.warn("学校ID格式错误: {}", data.getSchoolId());
+        if (currentSchoolId != null) {
+            // 如果是校领导导入，强制使用所属学校ID
+            schoolId = currentSchoolId;
+        } else if (StrUtil.isNotBlank(data.getSchoolName())) {
+            // 如果是管理员导入且填写了学校名称，按名称查询
+            LambdaQueryWrapper<UserSchool> schoolWrapper = new LambdaQueryWrapper<>();
+            schoolWrapper.eq(UserSchool::getSchoolName, data.getSchoolName())
+                         .eq(UserSchool::getStatus, 1)
+                         .last("LIMIT 1");
+            UserSchool school = userSchoolMapper.selectOne(schoolWrapper);
+            if (school == null) {
+                throw new BusinessException(ResultCode.DATA_NOT_FOUND.getCode(), "学校不存在: " + data.getSchoolName());
             }
+            schoolId = school.getId();
         }
         
         // 分配角色

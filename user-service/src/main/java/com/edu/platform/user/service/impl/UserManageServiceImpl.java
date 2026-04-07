@@ -259,5 +259,14 @@ public class UserManageServiceImpl implements UserManageService {
         
         return stats;
     }
+    @Override
+    public Long getUserSchoolId(Long userId) {
+        LambdaQueryWrapper<UserSchoolMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserSchoolMember::getUserId, userId)
+               .orderByDesc(UserSchoolMember::getJoinTime)
+               .last("LIMIT 1");
+        UserSchoolMember member = userSchoolMemberMapper.selectOne(wrapper);
+        return member != null ? member.getSchoolId() : null;
+    }
     
 }

@@ -51,6 +51,21 @@ public class AdminConfigController {
             return Result.fail("获取权重配置失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 获取维度名称配置
+     */
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TEACHER', 'ROLE_SCHOOL_LEADER')")
+    @GetMapping("/dimension-names")
+    @Operation(summary = "获取维度名称", description = "获取维度Key与展示名称的映射")
+    public Result<Map<String, String>> getDimensionNames() {
+        try {
+            return Result.success(configService.getDimensionNames());
+        } catch (Exception e) {
+            log.error("获取维度名称失败", e);
+            return Result.fail("获取维度名称失败: " + e.getMessage());
+        }
+    }
     
     /**
      * 更新权重配置

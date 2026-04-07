@@ -25,17 +25,20 @@ public interface ReportService {
      * 生成学校报告
      *
      * @param schoolId 学校ID
+     * @param startTime 统计开始时间
+     * @param endTime 统计结束时间
      * @return 报告ID
      */
-    Long generateSchoolReport(Long schoolId);
+    Long generateSchoolReport(Long schoolId, String startTime, String endTime);
     
     /**
      * 获取报告文件路径
      *
      * @param reportId 报告ID
+     * @param reportType 报告类型(1=课程报告,2=学校报告)
      * @return 文件路径
      */
-    String getReportFilePath(Long reportId);
+    String getReportFilePath(Long reportId, Integer reportType);
     
     /**
      * 查询报告状态
@@ -49,16 +52,18 @@ public interface ReportService {
      * 生成下载URL
      *
      * @param reportId 报告ID
+     * @param reportType 报告类型
      * @return 预签名下载URL
      */
-    String generateDownloadUrl(Long reportId);
+    String generateDownloadUrl(Long reportId, Integer reportType);
     
     /**
      * 增加下载次数
      *
      * @param reportId 报告ID
+     * @param reportType 报告类型
      */
-    void incrementDownloadCount(Long reportId);
+    void incrementDownloadCount(Long reportId, Integer reportType);
     
     /**
      * 查询课程报告列表

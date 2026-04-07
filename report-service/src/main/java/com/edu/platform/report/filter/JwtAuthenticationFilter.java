@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -47,22 +48,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                     .collect(Collectors.toList());
                 
-                // 创建认证对象
-                UsernamePasswordAuthenticationToken authentication = 
-                    new UsernamePasswordAuthenticationToken(username, null, authorities);
-                
-                // 设置到Security上下文
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                
-                log.debug("JWT认证成功: userId={}, username={}, roles={}", userId, username, roles);
+                try {
+                    // 设置 UserContext
+                    com.edu.platform.common.utils.UserContext.setUserId(userId);
+                    com.edu.platform.common.utils.UserContext.setUsername(username);
+                    com.edu.platform.common.utils.UserContext.setRoles(roles);
+
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        username, null, authorities);
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    
+                    log.info("JWT认证成功: userId={}, username={}, roles={}, authorities={}", userId, username, roles, authorities);
+                    
+                    filterChain.doFilter(request, response);
+                } finally {
+                    // 清理 UserContext，防止线程复用导致的数据污染
+                    com.edu.platform.common.utils.UserContext.clear();
+                }
             } catch (Exception e) {
                 log.error("JWT认证失败", e);
                 SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
             }
+        } else {
+            // 3. 继续过滤链
+            filterChain.doFilter(request, response);
         }
-        
-        // 3. 继续过滤链
-        filterChain.doFilter(request, response);
     }
     
     /**

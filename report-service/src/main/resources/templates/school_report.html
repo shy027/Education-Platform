@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>全域思政建设成效报告</title>
+    <style>
+        body {
+            font-family: "SimSun", "STSong", serif;
+            margin: 40px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #28a745;
+            margin: 0;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .meta-info {
+            text-align: right;
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #444;
+            border-left: 5px solid #28a745;
+            padding-left: 10px;
+            margin-bottom: 15px;
+            background-color: #f8f9fa;
+            padding-top: 5px;
+            padding-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .chart-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .chart-container img {
+            max-width: 80%;
+            height: auto;
+        }
+        .summary-box {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .summary-item {
+            flex: 1;
+            background-color: #e9ecef;
+            padding: 15px;
+            margin: 0 5px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .summary-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .footer {
+            margin-top: 50px;
+            font-size: 10px;
+            color: #999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">全域思政建设成效报告</h1>
+        <div class="subtitle">School-wide Ideological Education Report</div>
+    </div>
+
+    <div class="meta-info">
+        生成时间：<span th:text="${#temporals.format(now, 'yyyy-MM-dd HH:mm:ss')}">2026-04-07 12:00:00</span>
+    </div>
+
+    <div class="section">
+        <div class="section-title">一、学校统计概况</div>
+        <table>
+            <tr>
+                <th width="30%">学校ID</th>
+                <td th:text="${schoolId}">未知</td>
+            </tr>
+            <tr>
+                <th>统计课程总数</th>
+                <td th:text="${courseCount}">0</td>
+            </tr>
+            <tr>
+                <th>参与学生总数</th>
+                <td th:text="${studentCount}">0</td>
+            </tr>
+            <tr>
+                <th>统计时间范围</th>
+                <td th:text="${reportPeriod}">未指定</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">二、思政素养全域概况</div>
+        <div class="summary-box">
+            <div class="summary-item">
+                <div class="summary-label">全校均分</div>
+                <div class="summary-value" th:text="${#numbers.formatDecimal(avgScore, 1, 2)}">0.00</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">活跃学生数</div>
+                <div class="summary-value" th:text="${activeStudents}">0</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">优秀率</div>
+                <div class="summary-value" th:text="${activeStudents > 0 ? #numbers.formatPercent(excellentCount * 1.0 / activeStudents, 1, 2) : '0.0%'}">0.0%</div>
+            </div>
+        </div>
+        <table>
+            <tr>
+                <th>等级</th>
+                <th>人数</th>
+            </tr>
+            <tr><td>优秀份数</td><td th:text="${excellentCount}">0</td></tr>
+            <tr><td>良好份数</td><td th:text="${goodCount}">0</td></tr>
+            <tr><td>合格份数</td><td th:text="${passCount}">0</td></tr>
+            <tr><td>待提升份数</td><td th:text="${needImprovementCount}">0</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">三、五维度全域分析</div>
+        <div class="chart-container">
+            <img th:if="${radarChart != null}" th:src="'data:image/png;base64,' + ${radarChart}" alt="雷达图"/>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">四、学习行为全域分析</div>
+        <div class="chart-container">
+            <img th:if="${barChart != null}" th:src="'data:image/png;base64,' + ${barChart}" alt="柱状图"/>
+        </div>
+    </div>
+
+    <div class="footer">
+        © Education Platform - 智慧教育决策辅助系统
+    </div>
+</body>
+</html>

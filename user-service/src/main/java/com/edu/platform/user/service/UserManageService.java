@@ -56,4 +56,11 @@ public interface UserManageService {
      * @return 统计数据MAP
      */
     java.util.Map<String, Object> getUserStats();
+
+    /**
+     * 获取用户所属学校ID
+     * @param userId 用户ID
+     * @return 学校ID，若无则返回null
+     */
+    Long getUserSchoolId(Long userId);
 }
