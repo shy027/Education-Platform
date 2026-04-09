@@ -127,9 +127,11 @@ public class ResourceServiceImpl implements ResourceService {
             // 根据 resourceType 设置初步的 fileType
             if (request.getResourceType() != null) {
                 switch (request.getResourceType()) {
+                    case 1:
                     case 2: attachment.setFileType("video"); break;
                     case 3: attachment.setFileType("pdf"); break;
                     case 4: attachment.setFileType("audio"); break;
+                    case 5: attachment.setFileType("image"); break;
                     default: attachment.setFileType("other");
                 }
             }
@@ -228,9 +230,11 @@ public class ResourceServiceImpl implements ResourceService {
             attachment.setFileName(resource.getTitle());
             if (resource.getResourceType() != null) {
                 switch (resource.getResourceType()) {
+                    case 1:
                     case 2: attachment.setFileType("video"); break;
                     case 3: attachment.setFileType("pdf"); break;
                     case 4: attachment.setFileType("audio"); break;
+                    case 5: attachment.setFileType("image"); break;
                     default: attachment.setFileType("other");
                 }
             }
@@ -753,10 +757,11 @@ public class ResourceServiceImpl implements ResourceService {
         distribution.forEach((type, count) -> {
             String name;
             switch (type) {
-                case 1: name = "文章"; break;
+                case 1: name = "动画"; break;
                 case 2: name = "视频"; break;
                 case 3: name = "文档"; break;
                 case 4: name = "音频"; break;
+                case 5: name = "挂图"; break;
                 default: name = "其他";
             }
             namedDistribution.put(name, count);

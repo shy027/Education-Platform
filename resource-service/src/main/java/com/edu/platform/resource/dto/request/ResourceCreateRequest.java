@@ -41,7 +41,7 @@ public class ResourceCreateRequest {
     private Long categoryId;
     
     /**
-     * 资源类型: 1-文章, 2-视频, 3-文档, 4-音频
+     * 资源类型: 1-动画, 2-视频, 3-文档, 4-音频, 5-挂图
      */
     private Integer resourceType;
 
