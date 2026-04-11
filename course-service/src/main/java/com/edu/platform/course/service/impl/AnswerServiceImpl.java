@@ -151,8 +151,8 @@ public class AnswerServiceImpl implements AnswerService {
             throw new BusinessException("无权查看此答题记录");
         }
 
-        // 2. 查询试卷
-        PaperResponse paper = paperService.getPaperDetail(record.getTaskId());
+        // 2. 查询试卷 (不包含正确答案)
+        PaperResponse paper = paperService.getPaperDetail(record.getTaskId(), false);
 
         // 3. 查询已答题目
         List<ExamStudentAnswer> answers = answerMapper.selectList(

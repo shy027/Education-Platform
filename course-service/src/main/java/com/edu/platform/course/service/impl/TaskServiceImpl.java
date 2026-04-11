@@ -87,7 +87,11 @@ public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> i
         BeanUtil.copyProperties(request, task);
         task.setCreatorId(currentUserId);
         task.setSubmitCount(0);
-        task.setStatus(1); // 默认发布状态
+        
+        // 默认所有类型均为草稿状态(0)，需进入组卷/检查后发布
+        if (task.getStatus() == null) {
+            task.setStatus(0);
+        }
         
         this.save(task);
         return task.getId();

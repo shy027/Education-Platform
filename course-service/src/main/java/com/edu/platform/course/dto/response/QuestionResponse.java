@@ -63,8 +63,11 @@ public class QuestionResponse {
     @Schema(description = "选项列表")
     private List<QuestionOptionVO> options;
 
-    @Schema(description = "维度关联 (维度名称 -> 权重)")
-    private Map<String, BigDecimal> dimensions;
+    @Schema(description = "关联树形分类ID (比如电子信息与计算机)")
+    private Long categoryId;
+
+    @Schema(description = "核心素养维度配置(如 1,3,5)")
+    private String dimensions;
 
     @Data
     @Schema(description = "题目选项")

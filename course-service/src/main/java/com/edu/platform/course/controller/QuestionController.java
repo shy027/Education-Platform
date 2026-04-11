@@ -11,6 +11,22 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletResponse;
+
+import com.alibaba.excel.EasyExcel;
+import com.edu.platform.course.dto.request.excel.QuestionExcelDTO;
+import com.edu.platform.course.excel.QuestionExcelListener;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.edu.platform.course.entity.ExamQuestion;
+import com.edu.platform.course.mapper.ExamQuestionMapper;
+import java.util.Collections;
+
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 题目管理控制器
@@ -22,6 +38,7 @@ import org.springframework.web.bind.annotation.*;
 public class QuestionController {
 
     private final QuestionService questionService;
+    private final ExamQuestionMapper questionMapper;
 
     @Operation(summary = "创建题目")
     @PostMapping
@@ -77,5 +94,69 @@ public class QuestionController {
         
         PageResult<QuestionResponse> result = questionService.listQuestions(request);
         return Result.success(result);
+    }
+
+    @Operation(summary = "下载题目导入模板")
+    @GetMapping("/template")
+    public void downloadTemplate(HttpServletResponse response) throws IOException {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String fileName = URLEncoder.encode("题目导入模板", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+        
+        // 构造一条示例数据
+        List<QuestionExcelDTO> exampleList = new ArrayList<>();
+        QuestionExcelDTO example = new QuestionExcelDTO();
+        example.setQuestionType("单选题");
+        example.setDifficulty("简单");
+        example.setContent("Java中所有类的父类是？");
+        example.setOptionA("String");
+        example.setOptionB("Object");
+        example.setOptionC("System");
+        example.setOptionD("Class");
+        example.setAnswer("B");
+        example.setAnalysis("Object类是Java中所有类的超类。");
+        exampleList.add(example);
+        
+        EasyExcel.write(response.getOutputStream(), QuestionExcelDTO.class)
+                .sheet("题目导入模板")
+                .doWrite(exampleList);
+    }
+
+    @Operation(summary = "导入题目")
+    @PostMapping("/import")
+    public Result<Void> importQuestions(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) Long courseId) throws IOException {
+        
+        EasyExcel.read(file.getInputStream(), QuestionExcelDTO.class, 
+                new QuestionExcelListener(questionService, courseId)).sheet().doRead();
+                
+        return Result.success();
+    }
+
+    @Operation(summary = "智能推荐抽题")
+    @GetMapping("/recommend")
+    public Result<List<QuestionResponse>> recommendQuestions(
+            @RequestParam(required = false) Long courseId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String dimensions,
+            @RequestParam(defaultValue = "10") Integer count) {
+        
+        // 此处为简化的推荐算法(在没有真实AI微服务响应下的同维度随机抽题回退策略)
+        // 实际如果要接入大模型AI微服务，可以在这组装prompt调用ai-service。由于提问者指出“题库智能推荐”，故此处从数据库匹配。
+        LambdaQueryWrapper<ExamQuestion> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ExamQuestion::getIsDeleted, 0).eq(ExamQuestion::getStatus, 1);
+        if (courseId != null) {
+            wrapper.eq(ExamQuestion::getCourseId, courseId);
+        }
+        wrapper.last("ORDER BY RAND() LIMIT " + count);
+        
+        List<ExamQuestion> questions = questionMapper.selectList(wrapper);
+        List<QuestionResponse> results = new ArrayList<>();
+        for (ExamQuestion q : questions) {
+            results.add(questionService.getQuestionDetail(q.getId()));
+        }
+        return Result.success(results);
     }
 }

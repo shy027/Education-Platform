@@ -17,8 +17,8 @@ public class PaperResponse {
     @Schema(description = "任务ID")
     private Long taskId;
 
-    @Schema(description = "试卷标题")
-    private String title;
+    @Schema(description = "任务标题")
+    private String taskTitle;
 
     @Schema(description = "总分")
     private BigDecimal totalScore;
@@ -28,6 +28,15 @@ public class PaperResponse {
 
     @Schema(description = "题目列表")
     private List<PaperQuestionVO> questions;
+
+    @Schema(description = "开始时间")
+    private LocalDateTime startTime;
+
+    @Schema(description = "截止时间")
+    private LocalDateTime endTime;
+
+    @Schema(description = "考试时长(分钟)")
+    private Integer durationMinutes;
 
     @Schema(description = "创建时间")
     private LocalDateTime createdTime;
@@ -53,6 +62,15 @@ public class PaperResponse {
         
         @Schema(description = "排序")
         private Integer sortOrder;
+
+        @Schema(description = "题目解析")
+        private String analysis;
+
+        @Schema(description = "正确答案 (填空题)")
+        private String correctAnswer;
+
+        @Schema(description = "参考答案 (简答题)")
+        private String referenceAnswer;
         
         @Schema(description = "选项列表")
         private List<OptionVO> options;

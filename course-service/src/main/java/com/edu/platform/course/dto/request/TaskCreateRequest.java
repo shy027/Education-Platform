@@ -37,9 +37,8 @@ public class TaskCreateRequest {
     private Integer taskType;
     
     /**
-     * 总分
+     * 总分 (创建时可选，组卷后自动计算)
      */
-    @NotNull(message = "总分不能为空")
     private BigDecimal totalScore;
     
     /**
@@ -81,4 +80,9 @@ public class TaskCreateRequest {
      * 是否随机题目 (0否 1是)
      */
     private Integer randomQuestion = 0;
+
+    /**
+     * 状态 (0草稿 1发布 2关闭)
+     */
+    private Integer status;
 }

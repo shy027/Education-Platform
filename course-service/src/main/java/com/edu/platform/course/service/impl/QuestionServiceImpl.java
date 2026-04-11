@@ -33,8 +33,6 @@ public class QuestionServiceImpl implements QuestionService {
 
     private final ExamQuestionMapper questionMapper;
     private final ExamQuestionOptionMapper optionMapper;
-    private final ExamDimensionMapper dimensionMapper;
-    private final ExamQuestionDimensionMapper questionDimensionMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -44,6 +42,7 @@ public class QuestionServiceImpl implements QuestionService {
         // 1. 创建题目
         ExamQuestion question = new ExamQuestion();
         question.setCourseId(request.getCourseId());
+        question.setCategoryId(request.getCategoryId());
         question.setContent(request.getContent());
         question.setQuestionType(request.getQuestionType());
         question.setScore(request.getScore());
@@ -51,6 +50,7 @@ public class QuestionServiceImpl implements QuestionService {
         question.setCorrectAnswer(request.getCorrectAnswer());
         question.setReferenceAnswer(request.getReferenceAnswer());
         question.setAnalysis(request.getAnalysis());
+        question.setDimensions(request.getDimensions());
         question.setCreatorId(currentUserId);
 
         questionMapper.insert(question);
@@ -69,15 +69,7 @@ public class QuestionServiceImpl implements QuestionService {
             }
         }
 
-        // 3. 关联维度
-        if (!CollectionUtils.isEmpty(request.getDimensionIds())) {
-            for (Long dimensionId : request.getDimensionIds()) {
-                ExamQuestionDimension qd = new ExamQuestionDimension();
-                qd.setQuestionId(questionId);
-                qd.setDimensionId(dimensionId);
-                questionDimensionMapper.insert(qd);
-            }
-        }
+        // 3. (旧维度关联处理已移除，采用直接存入 dimensions 字段)
 
         log.info("创建题目成功, questionId={}, creatorId={}", questionId, currentUserId);
         return questionId;
@@ -100,6 +92,12 @@ public class QuestionServiceImpl implements QuestionService {
         }
 
         // 3. 更新题目基本信息
+        if (request.getCategoryId() != null) {
+            question.setCategoryId(request.getCategoryId());
+        }
+        if (StringUtils.hasText(request.getDimensions())) {
+            question.setDimensions(request.getDimensions());
+        }
         if (StringUtils.hasText(request.getContent())) {
             question.setContent(request.getContent());
         }
@@ -136,18 +134,7 @@ public class QuestionServiceImpl implements QuestionService {
             }
         }
 
-        // 5. 更新维度关联
-        if (!CollectionUtils.isEmpty(request.getDimensionIds())) {
-            questionDimensionMapper.delete(new LambdaQueryWrapper<ExamQuestionDimension>()
-                    .eq(ExamQuestionDimension::getQuestionId, questionId));
-
-            for (Long dimensionId : request.getDimensionIds()) {
-                ExamQuestionDimension qd = new ExamQuestionDimension();
-                qd.setQuestionId(questionId);
-                qd.setDimensionId(dimensionId);
-                questionDimensionMapper.insert(qd);
-            }
-        }
+        // 5. (旧维度关联处理已移除，更新已在第3步完成)
 
         log.info("更新题目成功, questionId={}", questionId);
     }
@@ -198,28 +185,7 @@ public class QuestionServiceImpl implements QuestionService {
             response.setOptions(optionVOs);
         }
 
-        // 4. 查询维度关联
-        List<ExamQuestionDimension> qds = questionDimensionMapper.selectList(
-                new LambdaQueryWrapper<ExamQuestionDimension>()
-                        .eq(ExamQuestionDimension::getQuestionId, questionId)
-        );
-
-        if (!CollectionUtils.isEmpty(qds)) {
-            Set<Long> dimensionIds = qds.stream()
-                    .map(ExamQuestionDimension::getDimensionId)
-                    .collect(Collectors.toSet());
-
-            List<ExamDimension> dimensions = dimensionMapper.selectBatchIds(dimensionIds);
-            Map<Long, String> dimensionMap = dimensions.stream()
-                    .collect(Collectors.toMap(ExamDimension::getId, ExamDimension::getName));
-
-            Map<String, BigDecimal> dimensionWeights = qds.stream()
-                    .collect(Collectors.toMap(
-                            qd -> dimensionMap.get(qd.getDimensionId()),
-                            ExamQuestionDimension::getWeight
-                    ));
-            response.setDimensions(dimensionWeights);
-        }
+        // 4. (旧版分离维度的处理已被移除)
 
         return response;
     }
@@ -270,6 +236,7 @@ public class QuestionServiceImpl implements QuestionService {
         QuestionResponse response = new QuestionResponse();
         response.setId(question.getId());
         response.setCourseId(question.getCourseId());
+        response.setCategoryId(question.getCategoryId());
         response.setChapterId(question.getChapterId());
         response.setContent(question.getContent());
         response.setQuestionType(question.getQuestionType());
@@ -278,6 +245,7 @@ public class QuestionServiceImpl implements QuestionService {
         response.setCorrectAnswer(question.getCorrectAnswer());
         response.setReferenceAnswer(question.getReferenceAnswer());
         response.setAnalysis(question.getAnalysis());
+        response.setDimensions(question.getDimensions());
         response.setDifficulty(question.getDifficulty());
         response.setCreatorId(question.getCreatorId());
         response.setStatus(question.getStatus());
@@ -302,17 +270,15 @@ public class QuestionServiceImpl implements QuestionService {
      * 获取题型名称
      */
     private String getTypeName(Integer type) {
+        if (type == null) return "未知";
         switch (type) {
-            case 1:
-                return "单选题";
-            case 2:
-                return "多选题";
-            case 3:
-                return "判断题";
-            case 4:
-                return "简答题";
-            default:
-                return "未知";
+            case 1: return "单选题";
+            case 2: return "多选题";
+            case 3: return "判断题";
+            case 4: return "填空题";
+            case 5: return "简答题";
+            case 6: return "编程题";
+            default: return "未知";
         }
     }
 }

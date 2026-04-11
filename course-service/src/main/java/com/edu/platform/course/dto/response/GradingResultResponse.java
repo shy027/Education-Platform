@@ -62,6 +62,9 @@ public class GradingResultResponse {
         @Schema(description = "得分")
         private BigDecimal score;
         
+        @Schema(description = "满分/总分")
+        private BigDecimal fullScore;
+        
         @Schema(description = "是否正确")
         private Boolean isCorrect;
         

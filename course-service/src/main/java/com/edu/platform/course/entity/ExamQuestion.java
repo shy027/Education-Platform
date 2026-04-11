@@ -30,6 +30,11 @@ public class ExamQuestion extends BaseEntity {
     private Long chapterId;
 
     /**
+     * 所属学科分类ID（关联resource_category表）
+     */
+    private Long categoryId;
+
+    /**
      * 题目内容 (支持富文本)
      */
     private String content;
@@ -45,6 +50,11 @@ public class ExamQuestion extends BaseEntity {
      * 数据库字段: answer
      */
     private String answer;
+
+    /**
+     * 核心素养维度配置(以逗号分隔，如 1,3,5)
+     */
+    private String dimensions;
 
     /**
      * 题目解析

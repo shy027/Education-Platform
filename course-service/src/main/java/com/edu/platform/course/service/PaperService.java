@@ -12,17 +12,19 @@ public interface PaperService {
     /**
      * 手动组卷
      */
-    void assembleManualPaper(ManualPaperRequest request);
+    Long assembleManualPaper(ManualPaperRequest request);
 
     /**
-     * 随机组卷
+     * 随机抽取题目组卷
      */
-    void assembleRandomPaper(RandomPaperRequest request);
+    Long assembleRandomPaper(RandomPaperRequest request);
 
     /**
      * 获取试卷详情
+     * @param taskId 任务ID
+     * @param includeAnswers 是否包含正确答案 (学生答题时应为false)
      */
-    PaperResponse getPaperDetail(Long taskId);
+    PaperResponse getPaperDetail(Long taskId, boolean includeAnswers);
 
     /**
      * 删除试卷

@@ -153,7 +153,7 @@ public class StudentExamServiceImpl implements StudentExamService {
         }
 
         // 返回试卷详情(但不包含正确答案)
-        return paperService.getPaperDetail(taskId);
+        return paperService.getPaperDetail(taskId, false);
     }
 
     @Override

@@ -97,6 +97,13 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
         
+        <!-- EasyExcel 用于题目导入导出 -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+            <version>3.3.4</version>
+        </dependency>
+        
         <!-- LoadBalancer (Required for Feign in SC 2020+) -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

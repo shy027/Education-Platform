@@ -23,22 +23,22 @@ public class PaperController {
 
     @Operation(summary = "手动组卷")
     @PostMapping("/manual")
-    public Result<Void> assembleManualPaper(@RequestBody ManualPaperRequest request) {
-        paperService.assembleManualPaper(request);
-        return Result.success();
+    public Result<Long> assembleManualPaper(@RequestBody ManualPaperRequest request) {
+        Long taskId = paperService.assembleManualPaper(request);
+        return Result.success(taskId);
     }
 
     @Operation(summary = "随机组卷")
     @PostMapping("/random")
-    public Result<Void> assembleRandomPaper(@RequestBody RandomPaperRequest request) {
-        paperService.assembleRandomPaper(request);
-        return Result.success();
+    public Result<Long> assembleRandomPaper(@RequestBody RandomPaperRequest request) {
+        Long taskId = paperService.assembleRandomPaper(request);
+        return Result.success(taskId);
     }
 
     @Operation(summary = "获取试卷详情")
     @GetMapping("/{taskId}")
     public Result<PaperResponse> getPaperDetail(@PathVariable Long taskId) {
-        PaperResponse response = paperService.getPaperDetail(taskId);
+        PaperResponse response = paperService.getPaperDetail(taskId, true);
         return Result.success(response);
     }
 

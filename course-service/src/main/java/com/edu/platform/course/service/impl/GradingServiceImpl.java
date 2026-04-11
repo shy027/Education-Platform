@@ -86,9 +86,16 @@ public class GradingServiceImpl implements GradingService {
             ExamQuestion question = questionMap.get(taskQuestion.getQuestionId());
             if (question == null) continue;
 
-            // 只评分客观题(单选、多选、判断)
-            if (question.getQuestionType() <= 3) {
-                boolean isCorrect = gradeObjectiveQuestion(question, answer.getUserAnswer());
+            // 评分客观题(单选、多选、判断)和填空题
+            if (question.getQuestionType() <= 4) {
+                boolean isCorrect = false;
+                if (question.getQuestionType() <= 3) {
+                    isCorrect = gradeObjectiveQuestion(question, answer.getUserAnswer());
+                } else if (question.getQuestionType() == 4) {
+                    // 填空题自动比对 (简单字符串匹配，可根据需要加模糊匹配)
+                    isCorrect = answer.getUserAnswer() != null && 
+                                answer.getUserAnswer().trim().equalsIgnoreCase(question.getAnswer().trim());
+                }
                 
                 answer.setIsCorrect(isCorrect ? 1 : 0);
                 
@@ -270,6 +277,7 @@ public class GradingServiceImpl implements GradingService {
             detail.setUserAnswer(answer.getUserAnswer());
             detail.setCorrectAnswer(question.getAnswer());
             detail.setScore(answer.getScore());
+            detail.setFullScore(taskQuestion.getScore());
             detail.setIsCorrect(answer.getIsCorrect() == 1);
             detail.setComment(answer.getComment());
 

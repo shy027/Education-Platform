@@ -30,9 +30,12 @@ public class QuestionUpdateRequest {
     @Schema(description = "参考答案 (简答题和编程题需要)")
     private String referenceAnswer;
 
+    @Schema(description = "关联树形分类ID (推荐题目时向下兼容)")
+    private Long categoryId;
+
     @Schema(description = "题目解析")
     private String analysis;
 
-    @Schema(description = "关联的能力维度ID列表")
-    private List<Long> dimensionIds;
+    @Schema(description = "核心素养维度配置(如 1,3,5)")
+    private String dimensions;
 }
