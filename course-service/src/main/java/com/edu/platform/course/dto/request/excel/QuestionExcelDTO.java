@@ -42,6 +42,6 @@ public class QuestionExcelDTO {
     @ExcelProperty(value = "所属学科（管理员导入必填，教师导入留空或系统自动推断）", index = 11)
     private String categoryName;
 
-    @ExcelProperty(value = "素养维度（以逗号分隔，如填 1,3 或是包含文字。选填，未识别系统自动使用默认值）", index = 12)
+    @ExcelProperty(value = "素养维度（逗号分隔。1:知识技能, 2:职业品格, 3:创新实践, 4:社会责任, 5:发展适应。选填）", index = 12)
     private String dimensions;
 }

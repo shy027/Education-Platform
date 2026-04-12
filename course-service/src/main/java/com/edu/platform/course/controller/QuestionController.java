@@ -79,6 +79,8 @@ public class QuestionController {
             @RequestParam(required = false) Integer difficulty,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long creatorId,
+            @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) String dimensions,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
         
@@ -89,6 +91,8 @@ public class QuestionController {
         request.setDifficulty(difficulty);
         request.setKeyword(keyword);
         request.setCreatorId(creatorId);
+        request.setCategoryId(categoryId);
+        request.setDimensions(dimensions);
         request.setPageNum(pageNum);
         request.setPageSize(pageSize);
         
@@ -139,7 +143,7 @@ public class QuestionController {
     @GetMapping("/recommend")
     public Result<List<QuestionResponse>> recommendQuestions(
             @RequestParam(required = false) Long courseId,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) String dimensions,
             @RequestParam(defaultValue = "10") Integer count) {
         
@@ -149,6 +153,20 @@ public class QuestionController {
         wrapper.eq(ExamQuestion::getIsDeleted, 0).eq(ExamQuestion::getStatus, 1);
         if (courseId != null) {
             wrapper.eq(ExamQuestion::getCourseId, courseId);
+        }
+        if (org.springframework.util.StringUtils.hasText(categoryId)) {
+            wrapper.and(w -> w.eq(ExamQuestion::getCategoryId, categoryId)
+                    .or(w2 -> w2.isNull(ExamQuestion::getCategoryId)
+                            .inSql(ExamQuestion::getCourseId, "SELECT id FROM course_info WHERE subject_area = '" + categoryId + "'")
+                    ));
+        }
+        if (org.springframework.util.StringUtils.hasText(dimensions)) {
+            String[] dims = dimensions.split(",");
+            for (String dim : dims) {
+                if (org.springframework.util.StringUtils.hasText(dim.trim())) {
+                    wrapper.like(ExamQuestion::getDimensions, dim.trim());
+                }
+            }
         }
         wrapper.last("ORDER BY RAND() LIMIT " + count);
         

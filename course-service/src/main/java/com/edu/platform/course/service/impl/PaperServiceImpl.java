@@ -231,8 +231,12 @@ public class PaperServiceImpl implements PaperService {
             PaperResponse.PaperQuestionVO qr = new PaperResponse.PaperQuestionVO();
             BeanUtil.copyProperties(question, qr);
             qr.setQuestionId(question.getId()); // 明确设置 ID
+            qr.setTaskQuestionId(tq.getId());   // 关联表主键，用于提交答案
             qr.setScore(tq.getScore());
             qr.setSortOrder(tq.getSortOrder());
+            
+            // 明确设置题型，防止 BeanUtil 未调用 getter 导致丢失
+            qr.setQuestionType(question.getQuestionType());
             
             // 设置题型名称
             qr.setTypeName(getQuestionTypeName(question.getQuestionType()));
@@ -252,9 +256,13 @@ public class PaperServiceImpl implements PaperService {
                 
                 qr.setOptions(options.stream().map(opt -> {
                     PaperResponse.OptionVO vo = new PaperResponse.OptionVO();
-                    BeanUtil.copyProperties(opt, vo);
-                    if (!includeAnswers) {
-                        vo.setIsCorrect(null);
+                    vo.setId(opt.getId());
+                    vo.setOptionLabel(opt.getOptionLabel());
+                    vo.setContent(opt.getContent());
+                    vo.setSortOrder(opt.getSortOrder());
+                    // Integer -> Boolean 转换
+                    if (includeAnswers && opt.getIsCorrect() != null) {
+                        vo.setIsCorrect(opt.getIsCorrect() == 1);
                     }
                     return vo;
                 }).collect(Collectors.toList()));

@@ -287,6 +287,54 @@ public class AdminConfigController {
     }
     
     /**
+     * 获取测试题型默认分值配置
+     */
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TEACHER', 'ROLE_SCHOOL_LEADER')")
+    @GetMapping("/exam-scores")
+    @Operation(summary = "获取测试题型默认分值", description = "获取各题型的默认分值配置")
+    public Result<Map<String, Integer>> getExamDefaultScores() {
+        try {
+            String json = configService.getConfigValue("exam.default_scores");
+            if (json == null) {
+                // 返给前端兜底默认值
+                Map<String, Integer> defaultScores = new HashMap<>();
+                defaultScores.put("1", 5);
+                defaultScores.put("2", 5);
+                defaultScores.put("3", 5);
+                defaultScores.put("4", 5);
+                defaultScores.put("5", 10);
+                defaultScores.put("6", 10);
+                return Result.success(defaultScores);
+            }
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(json);
+            Map<String, Integer> scores = new HashMap<>();
+            root.fields().forEachRemaining(entry -> {
+                scores.put(entry.getKey(), entry.getValue().asInt());
+            });
+            return Result.success(scores);
+        } catch (Exception e) {
+            log.error("获取题型默认分值失败", e);
+            return Result.fail("获取题型默认分值失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 更新测试题型默认分值配置
+     */
+    @PutMapping("/exam-scores")
+    @Operation(summary = "更新测试题型默认分值", description = "仅管理员可更新测试题型默认分值")
+    public Result<Void> updateExamDefaultScores(@RequestBody Map<String, Integer> scores) {
+        try {
+            String json = objectMapper.writeValueAsString(scores);
+            configService.updateConfig("exam.default_scores", json);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("更新题型默认分值失败", e);
+            return Result.fail("更新题型默认分值失败: " + e.getMessage());
+        }
+    }
+    
+    /**
      * 获取所有配置
      */
     @GetMapping

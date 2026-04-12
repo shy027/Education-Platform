@@ -33,6 +33,7 @@ public class QuestionServiceImpl implements QuestionService {
 
     private final ExamQuestionMapper questionMapper;
     private final ExamQuestionOptionMapper optionMapper;
+    private final SubjectCategoryMapper categoryMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -210,6 +211,33 @@ public class QuestionServiceImpl implements QuestionService {
         }
         if (request.getCreatorId() != null) {
             wrapper.eq(ExamQuestion::getCreatorId, request.getCreatorId());
+        }
+        if (StringUtils.hasText(request.getCategoryId())) {
+            String catId = request.getCategoryId();
+            // 获取分类名称用于向 course_info.subject_area 降级匹配
+            String catName = null;
+            try {
+                SubjectCategory cat = categoryMapper.selectById(catId);
+                if (cat != null) catName = cat.getName();
+            } catch (Exception ignored) {}
+
+            final String finalCatName = catName;
+            wrapper.and(w -> {
+                w.eq(ExamQuestion::getCategoryId, catId);
+                if (StringUtils.hasText(finalCatName)) {
+                    w.or(w2 -> w2.isNull(ExamQuestion::getCategoryId)
+                            .inSql(ExamQuestion::getCourseId, "SELECT id FROM course_info WHERE subject_area = '" + finalCatName + "'")
+                    );
+                }
+            });
+        }
+        if (StringUtils.hasText(request.getDimensions())) {
+            String[] dims = request.getDimensions().split(",");
+            for (String dim : dims) {
+                if (StringUtils.hasText(dim)) {
+                    wrapper.like(ExamQuestion::getDimensions, dim.trim());
+                }
+            }
         }
         if (StringUtils.hasText(request.getKeyword())) {
             wrapper.like(ExamQuestion::getContent, request.getKeyword());

@@ -30,4 +30,10 @@ public class QuestionQueryRequest extends PageRequest {
 
     @Schema(description = "创建人ID")
     private Long creatorId;
+
+    @Schema(description = "分类ID(向下兼容搜索)")
+    private String categoryId;
+
+    @Schema(description = "素养维度(用逗号分隔，完全包含搜索)")
+    private String dimensions;
 }

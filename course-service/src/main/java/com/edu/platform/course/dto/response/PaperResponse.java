@@ -20,6 +20,9 @@ public class PaperResponse {
     @Schema(description = "任务标题")
     private String taskTitle;
 
+    @Schema(description = "任务描述 (注意事项)")
+    private String taskDescription;
+
     @Schema(description = "总分")
     private BigDecimal totalScore;
 
@@ -44,6 +47,9 @@ public class PaperResponse {
     @Data
     @Schema(description = "试卷题目")
     public static class PaperQuestionVO {
+        
+        @Schema(description = "试卷题目关联ID (用于提交答案)")
+        private Long taskQuestionId;
         
         @Schema(description = "题目ID")
         private Long questionId;
