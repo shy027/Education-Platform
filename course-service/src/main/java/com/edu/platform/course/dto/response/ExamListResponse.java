@@ -48,4 +48,22 @@ public class ExamListResponse {
 
     @Schema(description = "学生得分")
     private BigDecimal studentScore;
+
+    @Schema(description = "是否允许重做: 0-否, 1-是")
+    private Integer allowRetry;
+
+    @Schema(description = "最大重做次数")
+    private Integer maxRetryTimes;
+
+    @Schema(description = "是否显示答案: 0-否, 1-是")
+    private Integer showAnswer;
+
+    @Schema(description = "当前已尝试次数")
+    private Integer attemptCount;
+
+    @Schema(description = "进行中的记录ID (如果有)")
+    private Long inProgressId;
+
+    @Schema(description = "最高分记录ID")
+    private Long bestRecordId;
 }

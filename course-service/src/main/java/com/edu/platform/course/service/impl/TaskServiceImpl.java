@@ -14,7 +14,9 @@ import com.edu.platform.course.dto.request.TaskUpdateRequest;
 import com.edu.platform.course.dto.response.TaskResponse;
 import com.edu.platform.course.entity.Course;
 import com.edu.platform.course.entity.CourseTask;
+import com.edu.platform.course.entity.ExamRecord;
 import com.edu.platform.course.mapper.CourseTaskMapper;
+import com.edu.platform.course.mapper.ExamRecordMapper;
 import com.edu.platform.course.service.CourseService;
 import com.edu.platform.course.service.TaskService;
 import com.edu.platform.course.util.PermissionUtil;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +41,7 @@ import java.util.stream.Collectors;
 public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> implements TaskService {
 
     private final CourseService courseService;
+    private final ExamRecordMapper recordMapper;
     
     private static final Map<Integer, String> TASK_TYPE_MAP = new HashMap<>();
     private static final Map<Integer, String> STATUS_MAP = new HashMap<>();
@@ -211,7 +215,21 @@ public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> i
             }
         }
         
-        return convertToResponse(task);
+        TaskResponse response = convertToResponse(task);
+        
+        // 如果是学生，尝试获取其答题记录状态
+        if (currentUserId != null && !hasManagePermission(courseId, currentUserId)) {
+            ExamRecord record = recordMapper.selectOne(new LambdaQueryWrapper<ExamRecord>()
+                    .eq(ExamRecord::getTaskId, id)
+                    .eq(ExamRecord::getUserId, currentUserId));
+            if (record != null) {
+                response.setStudentRecordId(record.getId());
+                response.setStudentStatus(record.getStatus());
+                response.setStudentScore(record.getTotalScore());
+            }
+        }
+        
+        return response;
     }
 
     @Override
@@ -237,8 +255,33 @@ public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> i
         
         Page<CourseTask> taskPage = this.page(page, wrapper);
         
-        List<TaskResponse> list = taskPage.getRecords().stream()
+        // 获取分页记录
+        List<CourseTask> records = taskPage.getRecords();
+        if (records.isEmpty()) {
+            return new Page<TaskResponse>().setRecords(new ArrayList<>());
+        }
+
+        // 批量查询当前学生的答题记录（如果是学生视角）
+        Map<Long, ExamRecord> studentRecordMap = new HashMap<>();
+        if (currentUserId != null && !isTeacher) {
+            List<Long> taskIds = records.stream().map(CourseTask::getId).collect(Collectors.toList());
+            List<ExamRecord> recordList = recordMapper.selectList(new LambdaQueryWrapper<ExamRecord>()
+                    .in(ExamRecord::getTaskId, taskIds)
+                    .eq(ExamRecord::getUserId, currentUserId));
+            studentRecordMap = recordList.stream().collect(Collectors.toMap(ExamRecord::getTaskId, r -> r));
+        }
+
+        Map<Long, ExamRecord> finalStudentRecordMap = studentRecordMap;
+        List<TaskResponse> list = records.stream()
                 .map(this::convertToResponse)
+                .peek(resp -> {
+                    ExamRecord record = finalStudentRecordMap.get(resp.getId());
+                    if (record != null) {
+                        resp.setStudentRecordId(record.getId());
+                        resp.setStudentStatus(record.getStatus());
+                        resp.setStudentScore(record.getTotalScore());
+                    }
+                })
                 .collect(Collectors.toList());
         
         Page<TaskResponse> resultPage = new Page<>();

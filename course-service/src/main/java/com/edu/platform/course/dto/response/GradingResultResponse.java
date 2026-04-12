@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -25,11 +26,20 @@ public class GradingResultResponse {
     @Schema(description = "总得分")
     private BigDecimal totalScore;
 
+    @Schema(description = "试卷实际总分")
+    private BigDecimal taskTotalScore;
+
+    @Schema(description = "提交时间")
+    private LocalDateTime submitTime;
+
     @Schema(description = "批改状态: 0-未批改, 1-部分批改, 2-已完成")
     private Integer gradingStatus;
 
     @Schema(description = "待批改题目数")
     private Integer pendingCount;
+
+    @Schema(description = "是否显示答案: 0-否, 1-是")
+    private Integer showAnswer;
 
     @Schema(description = "答题详情")
     private List<AnswerDetailVO> answers;

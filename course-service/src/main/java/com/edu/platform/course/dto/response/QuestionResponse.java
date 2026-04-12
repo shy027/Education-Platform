@@ -21,6 +21,9 @@ public class QuestionResponse {
     @Schema(description = "所属课程ID")
     private Long courseId;
 
+    @Schema(description = "课程名称")
+    private String courseName;
+
     @Schema(description = "关联章节ID")
     private Long chapterId;
 
@@ -66,8 +69,14 @@ public class QuestionResponse {
     @Schema(description = "关联树形分类ID (比如电子信息与计算机)")
     private Long categoryId;
 
+    @Schema(description = "分类名称")
+    private String categoryName;
+
     @Schema(description = "核心素养维度配置(如 1,3,5)")
     private String dimensions;
+
+    @Schema(description = "维度名称列表")
+    private String dimensionNames;
 
     @Data
     @Schema(description = "题目选项")

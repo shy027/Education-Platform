@@ -34,6 +34,7 @@ public class QuestionServiceImpl implements QuestionService {
     private final ExamQuestionMapper questionMapper;
     private final ExamQuestionOptionMapper optionMapper;
     private final SubjectCategoryMapper categoryMapper;
+    private final CourseMapper courseMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -48,8 +49,21 @@ public class QuestionServiceImpl implements QuestionService {
         question.setQuestionType(request.getQuestionType());
         question.setScore(request.getScore());
         question.setDifficulty(request.getDifficulty());
-        question.setCorrectAnswer(request.getCorrectAnswer());
-        question.setReferenceAnswer(request.getReferenceAnswer());
+        if (request.getQuestionType() != null) {
+            if (request.getQuestionType() == 4) {
+                question.setAnswer(request.getCorrectAnswer());
+            } else if (request.getQuestionType() == 5 || request.getQuestionType() == 6) {
+                question.setAnswer(request.getReferenceAnswer());
+            } else if (request.getQuestionType() <= 3 && !CollectionUtils.isEmpty(request.getOptions())) {
+                // 为选择题和判断题自动计算正确答案标签，存入 answer 字段
+                String correctLabels = request.getOptions().stream()
+                        .filter(opt -> opt.getIsCorrect() != null && opt.getIsCorrect())
+                        .map(QuestionCreateRequest.QuestionOptionDTO::getOptionLabel)
+                        .sorted()
+                        .collect(Collectors.joining(","));
+                question.setAnswer(correctLabels);
+            }
+        }
         question.setAnalysis(request.getAnalysis());
         question.setDimensions(request.getDimensions());
         question.setCreatorId(currentUserId);
@@ -105,11 +119,12 @@ public class QuestionServiceImpl implements QuestionService {
         if (request.getScore() != null) {
             question.setScore(request.getScore());
         }
-        if (StringUtils.hasText(request.getCorrectAnswer())) {
-            question.setCorrectAnswer(request.getCorrectAnswer());
-        }
-        if (StringUtils.hasText(request.getReferenceAnswer())) {
-            question.setReferenceAnswer(request.getReferenceAnswer());
+        if (question.getQuestionType() != null) {
+            if (question.getQuestionType() == 4 && request.getCorrectAnswer() != null) {
+                question.setAnswer(request.getCorrectAnswer());
+            } else if ((question.getQuestionType() == 5 || question.getQuestionType() == 6) && request.getReferenceAnswer() != null) {
+                question.setAnswer(request.getReferenceAnswer());
+            }
         }
         if (StringUtils.hasText(request.getAnalysis())) {
             question.setAnalysis(request.getAnalysis());
@@ -132,6 +147,17 @@ public class QuestionServiceImpl implements QuestionService {
                 option.setIsCorrect(optionDTO.getIsCorrect() ? 1 : 0);
                 option.setSortOrder(optionDTO.getSortOrder());
                 optionMapper.insert(option);
+            }
+
+            // 更新题目表的正确答案缓存
+            if (question.getQuestionType() != null && question.getQuestionType() <= 3) {
+                String correctLabels = request.getOptions().stream()
+                        .filter(opt -> opt.getIsCorrect() != null && opt.getIsCorrect())
+                        .map(QuestionCreateRequest.QuestionOptionDTO::getOptionLabel)
+                        .sorted()
+                        .collect(Collectors.joining(","));
+                question.setAnswer(correctLabels);
+                questionMapper.updateById(question);
             }
         }
 
@@ -212,6 +238,16 @@ public class QuestionServiceImpl implements QuestionService {
         if (request.getCreatorId() != null) {
             wrapper.eq(ExamQuestion::getCreatorId, request.getCreatorId());
         }
+        if (request.getBankType() != null) {
+            if (request.getBankType() == 1) {
+                // 公共题库 (course_id = 0 或 null)
+                wrapper.and(w -> w.eq(ExamQuestion::getCourseId, 0).or().isNull(ExamQuestion::getCourseId));
+            } else if (request.getBankType() == 2) {
+                // 非公共题库 (course_id > 0)
+                wrapper.gt(ExamQuestion::getCourseId, 0);
+            }
+        }
+
         if (StringUtils.hasText(request.getCategoryId())) {
             String catId = request.getCategoryId();
             // 获取分类名称用于向 course_info.subject_area 降级匹配
@@ -221,23 +257,28 @@ public class QuestionServiceImpl implements QuestionService {
                 if (cat != null) catName = cat.getName();
             } catch (Exception ignored) {}
 
-            final String finalCatName = catName;
+            final String scName = catName;
+            
+            // 匹配逻辑：题目直接关联了该分类，或者题目属于与其学科匹配的课程
             wrapper.and(w -> {
                 w.eq(ExamQuestion::getCategoryId, catId);
-                if (StringUtils.hasText(finalCatName)) {
-                    w.or(w2 -> w2.isNull(ExamQuestion::getCategoryId)
-                            .inSql(ExamQuestion::getCourseId, "SELECT id FROM course_info WHERE subject_area = '" + finalCatName + "'")
-                    );
+                if (StringUtils.hasText(scName)) {
+                    // 使用子查询匹配课程所属学科
+                    w.or().inSql(ExamQuestion::getCourseId, String.format("SELECT id FROM course_info WHERE subject_area LIKE '%%%s%%'", scName));
                 }
             });
         }
+
         if (StringUtils.hasText(request.getDimensions())) {
-            String[] dims = request.getDimensions().split(",");
-            for (String dim : dims) {
-                if (StringUtils.hasText(dim)) {
-                    wrapper.like(ExamQuestion::getDimensions, dim.trim());
+            // 素养维度搜索：支持逗号分隔的 ID 列表 (任意包含一个即匹配)
+            String[] dimIds = request.getDimensions().split(",");
+            wrapper.and(w -> {
+                for (int i = 0; i < dimIds.length; i++) {
+                    String id = dimIds[i].trim();
+                    if (i == 0) w.like(ExamQuestion::getDimensions, id);
+                    else w.or().like(ExamQuestion::getDimensions, id);
                 }
-            }
+            });
         }
         if (StringUtils.hasText(request.getKeyword())) {
             wrapper.like(ExamQuestion::getContent, request.getKeyword());
@@ -250,8 +291,60 @@ public class QuestionServiceImpl implements QuestionService {
         Page<ExamQuestion> resultPage = questionMapper.selectPage(page, wrapper);
 
         // 3. 构建响应
-        List<QuestionResponse> responses = resultPage.getRecords().stream()
-                .map(this::buildQuestionResponse)
+        // 3. 补充关联信息名称
+        List<ExamQuestion> questions = resultPage.getRecords();
+        if (questions.isEmpty()) {
+            return PageResult.of(resultPage.getTotal(), new ArrayList<>());
+        }
+
+        // 批量查询课程名称
+        Set<Long> courseIds = questions.stream()
+                .map(ExamQuestion::getCourseId)
+                .filter(id -> id != null && id > 0)
+                .collect(Collectors.toSet());
+        Map<Long, String> courseNameMap = new HashMap<>();
+        if (!courseIds.isEmpty()) {
+            List<Course> courses = courseMapper.selectBatchIds(courseIds);
+            courseNameMap = courses.stream().collect(Collectors.toMap(Course::getId, Course::getCourseName));
+        }
+
+        // 批量查询分类名称
+        Set<Long> categoryIds = questions.stream()
+                .map(ExamQuestion::getCategoryId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> categoryNameMap = new HashMap<>();
+        if (!categoryIds.isEmpty()) {
+            List<SubjectCategory> categories = categoryMapper.selectBatchIds(categoryIds);
+            categoryNameMap = categories.stream().collect(Collectors.toMap(SubjectCategory::getId, SubjectCategory::getName));
+        }
+
+        // 批量查询维度名称 (匹配 AdminConfigController 默认规则)
+        Map<String, String> dimNameMap = new HashMap<>();
+        dimNameMap.put("1", "知识技能素养");
+        dimNameMap.put("2", "职业品格素养");
+        dimNameMap.put("3", "创新实践素养");
+        dimNameMap.put("4", "社会责任素养");
+        dimNameMap.put("5", "发展适应素养");
+
+        Map<Long, String> finalCourseNameMap = courseNameMap;
+        Map<Long, String> finalCategoryNameMap = categoryNameMap;
+        List<QuestionResponse> responses = questions.stream()
+                .map(q -> {
+                    QuestionResponse resp = buildQuestionResponse(q);
+                    resp.setCourseName(finalCourseNameMap.getOrDefault(q.getCourseId(), q.getCourseId() != null && q.getCourseId() > 0 ? "未知课程" : "公共题库"));
+                    
+                    // 使用分类名称作为展示
+                    resp.setCategoryName(finalCategoryNameMap.get(q.getCategoryId()));
+                    
+                    if (StringUtils.hasText(q.getDimensions())) {
+                        String names = Arrays.stream(q.getDimensions().split(","))
+                                .map(dimId -> dimNameMap.getOrDefault(dimId.trim(), "维度" + dimId.trim()))
+                                .collect(Collectors.joining(", "));
+                        resp.setDimensionNames(names);
+                    }
+                    return resp;
+                })
                 .collect(Collectors.toList());
 
         return PageResult.of(resultPage.getTotal(), responses);

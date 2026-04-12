@@ -87,6 +87,15 @@ public class PaperServiceImpl implements PaperService {
         if (request.getDurationMinutes() != null) {
             task.setDurationMinutes(request.getDurationMinutes());
         }
+        if (request.getAllowRetry() != null) {
+            task.setAllowRetry(request.getAllowRetry());
+        }
+        if (request.getMaxRetryTimes() != null) {
+            task.setMaxRetryTimes(request.getMaxRetryTimes());
+        }
+        if (request.getShowAnswer() != null) {
+            task.setShowAnswer(request.getShowAnswer());
+        }
 
         // 2. 保存任务基本信息
         if (task.getId() == null) {
@@ -200,6 +209,17 @@ public class PaperServiceImpl implements PaperService {
 
         task.setPaperStatus(1);
         task.setTotalScore(totalScore);
+        
+        if (request.getAllowRetry() != null) {
+            task.setAllowRetry(request.getAllowRetry());
+        }
+        if (request.getMaxRetryTimes() != null) {
+            task.setMaxRetryTimes(request.getMaxRetryTimes());
+        }
+        if (request.getShowAnswer() != null) {
+            task.setShowAnswer(request.getShowAnswer());
+        }
+        
         taskMapper.updateById(task);
 
         log.info("随机组卷成功, taskId={}, questionCount={}", request.getTaskId(), selectedQuestions.size());

@@ -10,6 +10,7 @@ import com.edu.platform.course.dto.response.GradingResultResponse;
 import com.edu.platform.course.entity.*;
 import com.edu.platform.course.mapper.*;
 import com.edu.platform.course.service.GradingService;
+import com.edu.platform.course.util.PermissionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class GradingServiceImpl implements GradingService {
     private final ExamQuestionOptionMapper optionMapper;
     private final CourseTaskQuestionMapper taskQuestionMapper;
     private final CourseTaskMapper taskMapper;
+    private final CourseMapper courseMapper;
     private final com.edu.platform.course.client.BehaviorClient behaviorClient;
 
     @Override
@@ -224,6 +226,22 @@ public class GradingServiceImpl implements GradingService {
             throw new BusinessException("答题记录不存在");
         }
 
+        // 校验权限：学生只能查看自己的且已发布的记录。教师/管理员可以看所有。
+        Long currentUserId = UserContext.getUserId();
+        if (!PermissionUtil.isAdminOrLeader()) {
+            CourseTask task = taskMapper.selectById(record.getTaskId());
+            Course course = courseMapper.selectById(task.getCourseId());
+            if (course != null && !course.getTeacherId().equals(currentUserId)) {
+                // 如果不是任课教师，检查是否是学生本人且已发布
+                if (!record.getUserId().equals(currentUserId)) {
+                    throw new BusinessException("无权查看此答题记录");
+                }
+                if (record.getStatus() != 2) {
+                    throw new BusinessException("试卷尚未批改完成，请耐心等待");
+                }
+            }
+        }
+
         // 2. 查询答案详情
         List<ExamStudentAnswer> answers = answerMapper.selectList(
                 new LambdaQueryWrapper<ExamStudentAnswer>()
@@ -257,6 +275,23 @@ public class GradingServiceImpl implements GradingService {
         response.setRecordId(recordId);
         response.setStudentId(record.getUserId());
         response.setTotalScore(record.getTotalScore());
+        response.setSubmitTime(record.getSubmitTime());
+
+        // 设置任务总分与配置
+        CourseTask task = taskMapper.selectById(record.getTaskId());
+        if (task != null) {
+            response.setTaskTotalScore(task.getTotalScore());
+            response.setShowAnswer(task.getShowAnswer());
+        }
+
+        // 判断是否需要隐藏答案 (仅针对非教师/管理员角色查看自己的记录时有效)
+        boolean shouldHideAnswer = false;
+        if (!PermissionUtil.isAdminOrLeader() && task != null) {
+            // 如果当前用户是学生且任务配置不显示答案，则隐藏
+            if (task.getShowAnswer() != null && task.getShowAnswer() == 0) {
+                shouldHideAnswer = true;
+            }
+        }
 
         List<GradingResultResponse.AnswerDetailVO> answerDetails = new ArrayList<>();
         int pendingCount = 0;
@@ -275,10 +310,29 @@ public class GradingServiceImpl implements GradingService {
             detail.setQuestionContent(question.getContent());
             detail.setQuestionType(question.getQuestionType());
             detail.setUserAnswer(answer.getUserAnswer());
-            detail.setCorrectAnswer(question.getAnswer());
+            
+            // 获取正确答案：优先使用缓存的 answer 字段，若为空则从选项中聚合
+            String correctAnswer = question.getAnswer();
+            if (question.getQuestionType() <= 3 && (correctAnswer == null || correctAnswer.isEmpty())) {
+                List<ExamQuestionOption> options = optionMapper.selectList(
+                        new LambdaQueryWrapper<ExamQuestionOption>()
+                                .eq(ExamQuestionOption::getQuestionId, question.getId())
+                                .eq(ExamQuestionOption::getIsCorrect, 1)
+                );
+                correctAnswer = options.stream()
+                        .map(ExamQuestionOption::getOptionLabel)
+                        .sorted()
+                        .collect(Collectors.joining(","));
+            }
+            if (shouldHideAnswer) {
+                detail.setCorrectAnswer("***");
+            } else {
+                detail.setCorrectAnswer(correctAnswer);
+            }
+            
             detail.setScore(answer.getScore());
             detail.setFullScore(taskQuestion.getScore());
-            detail.setIsCorrect(answer.getIsCorrect() == 1);
+            detail.setIsCorrect(answer.getIsCorrect() != null && answer.getIsCorrect() == 1);
             detail.setComment(answer.getComment());
 
             answerDetails.add(detail);
@@ -324,6 +378,14 @@ public class GradingServiceImpl implements GradingService {
         // 标准化用户答案
         String normalizedUserAnswer = Arrays.stream(userAnswer.split(","))
                 .map(String::trim)
+                .map(ans -> {
+                    // 兼容判断题：将“正确/T/True”映射为 A，将“错误/F/False”映射为 B
+                    if (question.getQuestionType() == 3) {
+                        if (ans.equals("正确") || ans.equalsIgnoreCase("T") || ans.equalsIgnoreCase("True")) return "A";
+                        if (ans.equals("错误") || ans.equalsIgnoreCase("F") || ans.equalsIgnoreCase("False")) return "B";
+                    }
+                    return ans;
+                })
                 .sorted()
                 .collect(Collectors.joining(","));
 

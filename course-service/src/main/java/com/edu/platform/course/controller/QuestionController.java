@@ -142,32 +142,50 @@ public class QuestionController {
     @Operation(summary = "智能推荐抽题")
     @GetMapping("/recommend")
     public Result<List<QuestionResponse>> recommendQuestions(
-            @RequestParam(required = false) Long courseId,
+            @RequestParam(required = false) List<Long> courseIds,
+            @RequestParam(required = false) List<Integer> questionTypes,
             @RequestParam(required = false) String categoryId,
             @RequestParam(required = false) String dimensions,
             @RequestParam(defaultValue = "10") Integer count) {
         
-        // 此处为简化的推荐算法(在没有真实AI微服务响应下的同维度随机抽题回退策略)
-        // 实际如果要接入大模型AI微服务，可以在这组装prompt调用ai-service。由于提问者指出“题库智能推荐”，故此处从数据库匹配。
         LambdaQueryWrapper<ExamQuestion> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ExamQuestion::getIsDeleted, 0).eq(ExamQuestion::getStatus, 1);
-        if (courseId != null) {
-            wrapper.eq(ExamQuestion::getCourseId, courseId);
+        
+        // 范围过滤: 支持多选 (本课程/公共库等)
+        if (courseIds != null && !courseIds.isEmpty()) {
+            wrapper.in(ExamQuestion::getCourseId, courseIds);
         }
+        
+        // 题型过滤
+        if (questionTypes != null && !questionTypes.isEmpty()) {
+            wrapper.in(ExamQuestion::getType, questionTypes);
+        }
+
+        // 学科过滤
         if (org.springframework.util.StringUtils.hasText(categoryId)) {
             wrapper.and(w -> w.eq(ExamQuestion::getCategoryId, categoryId)
                     .or(w2 -> w2.isNull(ExamQuestion::getCategoryId)
                             .inSql(ExamQuestion::getCourseId, "SELECT id FROM course_info WHERE subject_area = '" + categoryId + "'")
                     ));
         }
+
+        // 素养维度过滤: 至少包含其中一个 (OR 逻辑)
         if (org.springframework.util.StringUtils.hasText(dimensions)) {
             String[] dims = dimensions.split(",");
-            for (String dim : dims) {
-                if (org.springframework.util.StringUtils.hasText(dim.trim())) {
-                    wrapper.like(ExamQuestion::getDimensions, dim.trim());
+            wrapper.and(w -> {
+                for (int i = 0; i < dims.length; i++) {
+                    String dim = dims[i].trim();
+                    if (org.springframework.util.StringUtils.hasText(dim)) {
+                        if (i == 0) {
+                            w.like(ExamQuestion::getDimensions, dim);
+                        } else {
+                            w.or().like(ExamQuestion::getDimensions, dim);
+                        }
+                    }
                 }
-            }
+            });
         }
+
         wrapper.last("ORDER BY RAND() LIMIT " + count);
         
         List<ExamQuestion> questions = questionMapper.selectList(wrapper);

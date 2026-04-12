@@ -16,6 +16,9 @@ public class QuestionQueryRequest extends PageRequest {
     @Schema(description = "课程ID (0表示公共题库)")
     private Long courseId;
 
+    @Schema(description = "题库类型: 0-全部, 1-公共题库, 2-非公共题库")
+    private Integer bankType;
+
     @Schema(description = "章节ID")
     private Long chapterId;
 

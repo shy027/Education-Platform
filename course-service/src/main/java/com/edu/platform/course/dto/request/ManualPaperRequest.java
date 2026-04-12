@@ -34,6 +34,15 @@ public class ManualPaperRequest {
     @Schema(description = "时长（分钟）", required = false)
     private Integer durationMinutes;
 
+    @Schema(description = "是否允许重做: 0-否, 1-是")
+    private Integer allowRetry;
+
+    @Schema(description = "最大重做次数")
+    private Integer maxRetryTimes;
+
+    @Schema(description = "是否显示答案: 0-否, 1-是")
+    private Integer showAnswer;
+
     @Schema(description = "题目列表", required = true)
     private List<QuestionItem> questions;
 

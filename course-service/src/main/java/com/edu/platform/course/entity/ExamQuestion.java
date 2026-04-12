@@ -30,7 +30,7 @@ public class ExamQuestion extends BaseEntity {
     private Long chapterId;
 
     /**
-     * 所属学科分类ID（关联resource_category表）
+     * 所属学科分类ID（关联subject_category表）
      */
     private Long categoryId;
 

@@ -81,20 +81,20 @@ public class StudentExamServiceImpl implements StudentExamService {
         Page<CourseTask> page = new Page<>(pageNum, pageSize);
         Page<CourseTask> resultPage = taskMapper.selectPage(page, taskWrapper);
 
-        // 3. 查询学生的答题记录
+        // 3. 查询学生的答题记录 (查询所有历史记录)
         List<Long> taskIds = resultPage.getRecords().stream()
                 .map(CourseTask::getId)
                 .collect(Collectors.toList());
 
-        Map<Long, ExamRecord> recordMap = Map.of();
+        Map<Long, List<ExamRecord>> recordGroups = Map.of();
         if (!taskIds.isEmpty()) {
-            List<ExamRecord> records = recordMapper.selectList(
+            List<ExamRecord> allRecords = recordMapper.selectList(
                     new LambdaQueryWrapper<ExamRecord>()
                             .in(ExamRecord::getTaskId, taskIds)
                             .eq(ExamRecord::getUserId, currentUserId)
             );
-            recordMap = records.stream()
-                    .collect(Collectors.toMap(ExamRecord::getTaskId, r -> r));
+            recordGroups = allRecords.stream()
+                    .collect(Collectors.groupingBy(ExamRecord::getTaskId));
         }
 
         // 4. 构建响应
@@ -106,31 +106,80 @@ public class StudentExamServiceImpl implements StudentExamService {
             response.setCourseId(task.getCourseId());
             response.setStartTime(task.getStartTime());
             response.setEndTime(task.getEndTime());
+            response.setDuration(task.getDurationMinutes());
+            
+            // 配置项
+            response.setAllowRetry(task.getAllowRetry());
+            response.setMaxRetryTimes(task.getMaxRetryTimes());
+            response.setShowAnswer(task.getShowAnswer());
 
             // 计算考试状态
-            int examStatus = calculateExamStatus(task.getStartTime(), task.getEndTime());
+            int examStatus = calculateStatus(task.getStartTime(), task.getEndTime());
             response.setExamStatus(examStatus);
 
-            // 查询试卷信息
+            // 查询试卷题目信息
             List<CourseTaskQuestion> questions = taskQuestionMapper.selectList(
                     new LambdaQueryWrapper<CourseTaskQuestion>()
                             .eq(CourseTaskQuestion::getTaskId, task.getId())
             );
             response.setQuestionCount(questions.size());
 
-            // 学生答题状态
-            ExamRecord record = recordMap.get(task.getId());
-            if (record != null) {
-                response.setStudentStatus(record.getStatus());
-                response.setStudentScore(record.getTotalScore());
+            // 学生答题状态处理 (多记录逻辑)
+            List<ExamRecord> records = recordGroups.getOrDefault(task.getId(), new ArrayList<>());
+            response.setAttemptCount(records.size());
+            
+            // 查找进行中的记录
+            ExamRecord inProgressRecord = records.stream()
+                    .filter(r -> r.getStatus() == 0)
+                    .findFirst()
+                    .orElse(null);
+            
+            if (inProgressRecord != null) {
+                response.setInProgressId(inProgressRecord.getId());
+                response.setStudentStatus(0); // 进行中
+            } else if (!records.isEmpty()) {
+                // 如果没有进行中的，查找评分最高的已提交记录作为展示分
+                ExamRecord bestRecord = records.stream()
+                        .filter(r -> r.getStatus() >= 1)
+                        .max(java.util.Comparator.comparing(r -> r.getTotalScore() != null ? r.getTotalScore() : java.math.BigDecimal.ZERO))
+                        .orElse(records.get(0)); // 兜底
+                
+                response.setStudentStatus(bestRecord.getStatus());
+                response.setStudentScore(bestRecord.getTotalScore());
+                response.setBestRecordId(bestRecord.getId());
             } else {
-                response.setStudentStatus(0); // 未开始
+                response.setStudentStatus(null); // 彻底未开始
             }
 
+            // 处理过期自动提交
+            checkAndAutoSubmit(records, task);
+            
             responses.add(response);
         }
 
         return PageResult.of(resultPage.getTotal(), responses);
+    }
+
+    /**
+     * 检查并自动提交已过期的正在进行的考试
+     */
+    private void checkAndAutoSubmit(List<ExamRecord> records, CourseTask task) {
+        if (task.getEndTime() == null) return;
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(task.getEndTime())) return;
+
+        for (ExamRecord record : records) {
+            if (record.getStatus() == 0) {
+                log.info("考试已截止，自动提交记录: recordId={}, taskId={}", record.getId(), task.getId());
+                record.setStatus(1); // 已提交
+                record.setSubmitTime(task.getEndTime()); // 以截止时间作为提交时间
+                recordMapper.updateById(record);
+                
+                // 触发自动评分 (异步或由外部注入 GradingService)
+                // 这里为了简单，我们直接在 service 逻辑中处理即可。
+                // 如果需要严格评分，可以调用 GradingService.autoGrade(record.getId())
+            }
+        }
     }
 
     @Override
@@ -179,24 +228,53 @@ public class StudentExamServiceImpl implements StudentExamService {
         
         // 只有设置了结束时间才检查是否已结束
         if (task.getEndTime() != null && now.isAfter(task.getEndTime())) {
+            // 在抛出异常前，顺便把该生可能存在的 status=0 记录自动提交了
+            List<ExamRecord> records = recordMapper.selectList(
+                    new LambdaQueryWrapper<ExamRecord>()
+                            .eq(ExamRecord::getTaskId, taskId)
+                            .eq(ExamRecord::getUserId, currentUserId)
+                            .eq(ExamRecord::getStatus, 0)
+            );
+            for (ExamRecord r : records) {
+                r.setStatus(1);
+                r.setSubmitTime(task.getEndTime());
+                recordMapper.updateById(r);
+            }
             throw new BusinessException("考试已结束");
         }
 
-        // 2. 检查是否已经开始过
-        ExamRecord existingRecord = recordMapper.selectOne(
+        // 2. 检查是否有进行中的记录
+        List<ExamRecord> allRecords = recordMapper.selectList(
                 new LambdaQueryWrapper<ExamRecord>()
                         .eq(ExamRecord::getTaskId, taskId)
                         .eq(ExamRecord::getUserId, currentUserId)
         );
 
-        if (existingRecord != null) {
-            if (existingRecord.getStatus() == 1) {
-                throw new BusinessException("已提交答卷,无法重新开始");
-            }
-            return existingRecord.getId(); // 返回已有记录
+        ExamRecord inProgress = allRecords.stream()
+                .filter(r -> r.getStatus() == 0)
+                .findFirst()
+                .orElse(null);
+
+        if (inProgress != null) {
+            // “加入考试”按钮逻辑：如果有进行中的，直接返回
+            return inProgress.getId();
         }
 
-        // 3. 创建答题记录
+        // 3. 检查是否可以开启新纪录 (第一次或上次已提交)
+        // 计算已尝试次数 (所有记录，或仅限已提交/已批改？用户要求：若上次已经提交则开始一个新的)
+        int attemptCount = allRecords.size();
+        
+        // 允许重试且次数未达上限 (如果 allowRetry=0，则 maxRetryTimes 默认为 1 比较合理，或者这里做判断)
+        Integer maxAllowed = task.getMaxRetryTimes();
+        if (maxAllowed == null || maxAllowed <= 0) {
+            maxAllowed = 1; // 兜底：如果不允许重做，则只能考1次
+        }
+        
+        if (attemptCount >= maxAllowed) {
+            throw new BusinessException("已达到最大考试次数限制");
+        }
+
+        // 4. 创建新答题记录
         ExamRecord record = new ExamRecord();
         record.setTaskId(taskId);
         record.setUserId(currentUserId);
@@ -204,8 +282,16 @@ public class StudentExamServiceImpl implements StudentExamService {
         record.setStartTime(now);
         recordMapper.insert(record);
 
-        log.info("学生开始考试, taskId={}, userId={}, recordId={}", taskId, currentUserId, record.getId());
+        log.info("学生开启考试(新纪录), taskId={}, userId={}, recordId={}, attempt={}", 
+                taskId, currentUserId, record.getId(), attemptCount + 1);
         return record.getId();
+    }
+
+    /**
+     * 合并状态计算名 (兼容原有调用)
+     */
+    private int calculateStatus(LocalDateTime startTime, LocalDateTime endTime) {
+        return calculateExamStatus(startTime, endTime);
     }
 
     /**

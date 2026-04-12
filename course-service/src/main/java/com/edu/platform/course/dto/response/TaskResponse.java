@@ -110,4 +110,29 @@ public class TaskResponse {
      * 创建时间
      */
     private LocalDateTime createdTime;
+
+    /**
+     * 当前学生的答题记录ID (学生视角使用)
+     */
+    private Long studentRecordId;
+
+    /**
+     * 当前学生的答题状态 (0进行中 1已提交 2已批改)
+     */
+    private Integer studentStatus;
+
+    /**
+     * 当前学生的总得分
+     */
+    private BigDecimal studentScore;
+
+    /**
+     * 当前学生的已尝试次数
+     */
+    private Integer attemptCount;
+
+    /**
+     * 正在进行中的记录ID
+     */
+    private Long inProgressId;
 }

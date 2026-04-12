@@ -26,4 +26,13 @@ public class RandomPaperRequest {
 
     @Schema(description = "每题分值 (key: 题型, value: 分值)", example = "{\"1\": 2.0, \"2\": 3.0}")
     private Map<Integer, Double> scorePerType;
+
+    @Schema(description = "是否允许重做: 0-否, 1-是")
+    private Integer allowRetry;
+
+    @Schema(description = "最大重做次数")
+    private Integer maxRetryTimes;
+
+    @Schema(description = "是否显示答案: 0-否, 1-是")
+    private Integer showAnswer;
 }
