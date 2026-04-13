@@ -68,15 +68,13 @@ public class QuestionExcelListener implements ReadListener<QuestionExcelDTO> {
         req.setContent(dto.getContent().trim());
         req.setAnalysis(dto.getAnalysis());
         
-        // 学科处理：这里如果是在真实AI环境下可以将 String 解析为 categoryId，此处先作为预留（前端不传或留空）
-        // 这里只是转换，如果在公共库，教师端会隐藏这列。公共管理员填写的 categoryName 需要去匹配 id。
-        // 但为了通用性，如果需要存 categoryId，可以在外层服务批量翻译，本次直接传过去由服务处理或设为空。
-        req.setCategoryId(null); 
+        // 学科处理：将 Excel 中的学科名称传给 Service 进行 ID 映射
+        req.setCategoryName(dto.getCategoryName());
         
-        // 维度处理：
+        // 维度处理：支持数字、文字及其混合输入
         String dim = dto.getDimensions();
         if (StringUtils.isNotBlank(dim)) {
-            req.setDimensions(dim.trim());
+            req.setDimensions(parseDimensions(dim));
         } else {
             // 如果没填，使用兜底维度：比如 "1"
             req.setDimensions("1");
@@ -142,6 +140,34 @@ public class QuestionExcelListener implements ReadListener<QuestionExcelDTO> {
             opt.setIsCorrect(StringUtils.isNotBlank(normalizedAnswer) && normalizedAnswer.contains(label));
             options.add(opt);
         }
+    }
+
+    private String parseDimensions(String dimStr) {
+        if (StringUtils.isBlank(dimStr)) return "1";
+        
+        // 分隔符支持中英文逗号、分号以及空格
+        String[] parts = dimStr.split("[,，;；\\s]+");
+        java.util.Set<String> results = new java.util.LinkedHashSet<>();
+        
+        for (String part : parts) {
+            String p = part.trim();
+            if (StringUtils.isBlank(p)) continue;
+            
+            // 如果是纯数字，直接添加
+            if (StringUtils.isNumeric(p)) {
+                results.add(p);
+                continue;
+            }
+            
+            // 文字匹配
+            if (p.contains("知识") || p.contains("技能")) results.add("1");
+            else if (p.contains("品格") || p.contains("操守")) results.add("2");
+            else if (p.contains("创新") || p.contains("实践")) results.add("3");
+            else if (p.contains("责任") || p.contains("担当")) results.add("4");
+            else if (p.contains("发展") || p.contains("适应")) results.add("5");
+        }
+        
+        return results.isEmpty() ? "1" : String.join(",", results);
     }
 
     private int parseType(String typeStr) {

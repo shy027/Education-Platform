@@ -40,4 +40,14 @@ public class UserInfoDTO {
      * 学校名称
      */
     private String schoolName;
+
+    /**
+     * 院系/部门 (学院)
+     */
+    private String department;
+
+    /**
+     * 班级/班号
+     */
+    private String className;
 }

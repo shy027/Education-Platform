@@ -119,11 +119,20 @@ public class AnswerServiceImpl implements AnswerService {
         record.setSubmitTime(LocalDateTime.now());
         recordMapper.updateById(record);
 
-        // 3. 更新任务提交计数
+        // 3. 更新任务提交计数 (去重逻辑：仅当是该用户第一次提交时增加参与人数)
         CourseTask task = taskMapper.selectById(record.getTaskId());
         if (task != null) {
-            task.setSubmitCount((task.getSubmitCount() == null ? 0 : task.getSubmitCount()) + 1);
-            taskMapper.updateById(task);
+            Long priorSubmissions = recordMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ExamRecord>()
+                    .eq(ExamRecord::getTaskId, record.getTaskId())
+                    .eq(ExamRecord::getUserId, currentUserId)
+                    .in(ExamRecord::getStatus, java.util.Arrays.asList(1, 2))
+                    .ne(ExamRecord::getId, recordId)
+            );
+            
+            if (priorSubmissions == 0) {
+                task.setSubmitCount((task.getSubmitCount() == null ? 0 : task.getSubmitCount()) + 1);
+                taskMapper.updateById(task);
+            }
         }
 
         // 4. 触发自动评分

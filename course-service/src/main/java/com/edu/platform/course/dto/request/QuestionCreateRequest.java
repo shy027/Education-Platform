@@ -39,6 +39,9 @@ public class QuestionCreateRequest {
     @Schema(description = "关联树形分类ID (推荐题目时向下兼容)")
     private Long categoryId;
 
+    @Schema(description = "分类名称 (导入时用于映射ID)")
+    private String categoryName;
+
     @Schema(description = "题目解析")
     private String analysis;
 

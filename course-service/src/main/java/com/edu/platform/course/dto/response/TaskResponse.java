@@ -135,4 +135,21 @@ public class TaskResponse {
      * 正在进行中的记录ID
      */
     private Long inProgressId;
+
+    /**
+     * 考试时间状态 (0-未开始 1-进行中 2-已结束)
+     */
+    private Integer examStatus;
+
+    /**
+     * 已批改历史记录
+     */
+    private java.util.List<GradedRecord> gradedRecords;
+
+    @Data
+    public static class GradedRecord {
+        private Long recordId;
+        private BigDecimal score;
+        private LocalDateTime submitTime;
+    }
 }

@@ -35,6 +35,15 @@ public class GradingResultResponse {
     @Schema(description = "批改状态: 0-未批改, 1-部分批改, 2-已完成")
     private Integer gradingStatus;
 
+    @Schema(description = "记录状态: 1-已提交, 2-已批改/发布")
+    private Integer status;
+
+    @Schema(description = "学院/部门")
+    private String department;
+
+    @Schema(description = "班级")
+    private String className;
+
     @Schema(description = "待批改题目数")
     private Integer pendingCount;
 

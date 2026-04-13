@@ -39,6 +39,7 @@ public class GradingServiceImpl implements GradingService {
     private final CourseTaskMapper taskMapper;
     private final CourseMapper courseMapper;
     private final com.edu.platform.course.client.BehaviorClient behaviorClient;
+    private final com.edu.platform.course.client.UserServiceClient userServiceClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -115,7 +116,6 @@ public class GradingServiceImpl implements GradingService {
 
         // 6. 更新总分
         record.setTotalScore(totalScore);
-        record.setStatus(2); // 已批改(客观题自动批改完成)
         recordMapper.updateById(record);
 
         log.info("自动评分完成, recordId={}, totalScore={}", recordId, totalScore);
@@ -152,10 +152,41 @@ public class GradingServiceImpl implements GradingService {
         Page<ExamRecord> page = new Page<>(pageNum, pageSize);
         Page<ExamRecord> resultPage = recordMapper.selectPage(page, wrapper);
 
-        // 2. 构建响应
+        if (resultPage.getRecords().isEmpty()) {
+            return PageResult.of(0L, new ArrayList<>());
+        }
+
+        // 2. 批量获取用户信息
+        List<Long> userIds = resultPage.getRecords().stream()
+                .map(ExamRecord::getUserId)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        Map<Long, com.edu.platform.course.dto.UserInfoDTO> userMap = java.util.Collections.emptyMap();
+        try {
+            com.edu.platform.common.result.Result<Map<Long, com.edu.platform.course.dto.UserInfoDTO>> userResult = 
+                    userServiceClient.batchGetUserInfo(userIds);
+            if (userResult.isSuccess() && userResult.getData() != null) {
+                userMap = userResult.getData();
+            }
+        } catch (Exception e) {
+            log.error("批量获取用户信息失败", e);
+        }
+
+        // 3. 构建响应
         List<GradingResultResponse> responses = new ArrayList<>();
         for (ExamRecord record : resultPage.getRecords()) {
             GradingResultResponse response = getGradingResult(record.getId());
+            
+            // 填充用户信息
+            com.edu.platform.course.dto.UserInfoDTO user = userMap.get(record.getUserId());
+            if (user != null) {
+                response.setStudentName(user.getRealName());
+                response.setDepartment(user.getDepartment());
+                response.setClassName(user.getClassName());
+            }
+            response.setStatus(record.getStatus());
+            
             responses.add(response);
         }
 
@@ -276,6 +307,21 @@ public class GradingServiceImpl implements GradingService {
         response.setStudentId(record.getUserId());
         response.setTotalScore(record.getTotalScore());
         response.setSubmitTime(record.getSubmitTime());
+        response.setStatus(record.getStatus());
+
+        // 获取并设置用户信息
+        try {
+            com.edu.platform.common.result.Result<com.edu.platform.course.dto.UserInfoDTO> userResult = 
+                    userServiceClient.getUserInfo(record.getUserId());
+            if (userResult.isSuccess() && userResult.getData() != null) {
+                com.edu.platform.course.dto.UserInfoDTO user = userResult.getData();
+                response.setStudentName(user.getRealName());
+                response.setDepartment(user.getDepartment());
+                response.setClassName(user.getClassName());
+            }
+        } catch (Exception e) {
+            log.error("获取用户信息失败, userId={}", record.getUserId(), e);
+        }
 
         // 设置任务总分与配置
         CourseTask task = taskMapper.selectById(record.getTaskId());
@@ -284,10 +330,10 @@ public class GradingServiceImpl implements GradingService {
             response.setShowAnswer(task.getShowAnswer());
         }
 
-        // 判断是否需要隐藏答案 (仅针对非教师/管理员角色查看自己的记录时有效)
+        // 判断是否需要隐藏答案 (仅针对学生视角)
         boolean shouldHideAnswer = false;
-        if (!PermissionUtil.isAdminOrLeader() && task != null) {
-            // 如果当前用户是学生且任务配置不显示答案，则隐藏
+        if (!PermissionUtil.isTeacherOrAbove() && task != null) {
+            // 如果目前是学生，且任务配置不显示答案，则隐藏
             if (task.getShowAnswer() != null && task.getShowAnswer() == 0) {
                 shouldHideAnswer = true;
             }

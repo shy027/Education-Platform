@@ -74,6 +74,7 @@ public class QuestionController {
     @GetMapping
     public Result<PageResult<QuestionResponse>> listQuestions(
             @RequestParam(required = false) Long courseId,
+            @RequestParam(required = false) Integer bankType,
             @RequestParam(required = false) Long chapterId,
             @RequestParam(required = false) Integer questionType,
             @RequestParam(required = false) Integer difficulty,
@@ -86,6 +87,7 @@ public class QuestionController {
         
         QuestionQueryRequest request = new QuestionQueryRequest();
         request.setCourseId(courseId);
+        request.setBankType(bankType);
         request.setChapterId(chapterId);
         request.setQuestionType(questionType);
         request.setDifficulty(difficulty);
@@ -120,6 +122,8 @@ public class QuestionController {
         example.setOptionD("Class");
         example.setAnswer("B");
         example.setAnalysis("Object类是Java中所有类的超类。");
+        example.setCategoryName("电子信息与计算机");
+        example.setDimensions("1,2,4");
         exampleList.add(example);
         
         EasyExcel.write(response.getOutputStream(), QuestionExcelDTO.class)

@@ -219,13 +219,31 @@ public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> i
         
         // 如果是学生，尝试获取其答题记录状态
         if (currentUserId != null && !hasManagePermission(courseId, currentUserId)) {
-            ExamRecord record = recordMapper.selectOne(new LambdaQueryWrapper<ExamRecord>()
+            List<ExamRecord> records = recordMapper.selectList(new LambdaQueryWrapper<ExamRecord>()
                     .eq(ExamRecord::getTaskId, id)
-                    .eq(ExamRecord::getUserId, currentUserId));
-            if (record != null) {
-                response.setStudentRecordId(record.getId());
-                response.setStudentStatus(record.getStatus());
-                response.setStudentScore(record.getTotalScore());
+                    .eq(ExamRecord::getUserId, currentUserId)
+                    .orderByDesc(ExamRecord::getCreatedTime));
+            
+            if (!records.isEmpty()) {
+                // 1. 尝试找到进行中的记录
+                ExamRecord inProgress = records.stream()
+                        .filter(r -> r.getStatus() == 0)
+                        .findFirst().orElse(null);
+                if (inProgress != null) {
+                    response.setInProgressId(inProgress.getId());
+                    response.setStudentRecordId(inProgress.getId());
+                    response.setStudentStatus(0);
+                } else {
+                    // 2. 如果没有进行中，取最高分的或者最近的一条显示状态
+                    ExamRecord latest = records.get(0);
+                    response.setStudentRecordId(latest.getId());
+                    response.setStudentStatus(latest.getStatus());
+                    response.setStudentScore(latest.getTotalScore());
+                }
+                
+                // 3. 统计已尝试次数 (已提交或已批改)
+                long attemptCount = records.stream().filter(r -> r.getStatus() != 0).count();
+                response.setAttemptCount((int) attemptCount);
             }
         }
         
@@ -262,24 +280,64 @@ public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> i
         }
 
         // 批量查询当前学生的答题记录（如果是学生视角）
-        Map<Long, ExamRecord> studentRecordMap = new HashMap<>();
+        Map<Long, List<ExamRecord>> studentRecordGroup = new HashMap<>();
         if (currentUserId != null && !isTeacher) {
             List<Long> taskIds = records.stream().map(CourseTask::getId).collect(Collectors.toList());
             List<ExamRecord> recordList = recordMapper.selectList(new LambdaQueryWrapper<ExamRecord>()
                     .in(ExamRecord::getTaskId, taskIds)
-                    .eq(ExamRecord::getUserId, currentUserId));
-            studentRecordMap = recordList.stream().collect(Collectors.toMap(ExamRecord::getTaskId, r -> r));
+                    .eq(ExamRecord::getUserId, currentUserId)
+                    .orderByDesc(ExamRecord::getCreatedTime));
+            
+            // 按任务ID分组
+            studentRecordGroup = recordList.stream().collect(Collectors.groupingBy(ExamRecord::getTaskId));
         }
-
-        Map<Long, ExamRecord> finalStudentRecordMap = studentRecordMap;
+    
+        Map<Long, List<ExamRecord>> finalRecordGroup = studentRecordGroup;
         List<TaskResponse> list = records.stream()
                 .map(this::convertToResponse)
                 .peek(resp -> {
-                    ExamRecord record = finalStudentRecordMap.get(resp.getId());
-                    if (record != null) {
-                        resp.setStudentRecordId(record.getId());
-                        resp.setStudentStatus(record.getStatus());
-                        resp.setStudentScore(record.getTotalScore());
+                    List<ExamRecord> sRecords = finalRecordGroup.get(resp.getId());
+                    if (sRecords != null && !sRecords.isEmpty()) {
+                        // 1. 查找进行中的记录
+                        ExamRecord inProgress = sRecords.stream()
+                                .filter(r -> r.getStatus() == 0)
+                                .findFirst().orElse(null);
+                                
+                        if (inProgress != null) {
+                            resp.setInProgressId(inProgress.getId());
+                            resp.setStudentRecordId(inProgress.getId());
+                            resp.setStudentStatus(0);
+                        } else {
+                            // 2. 没有进行中的，显示最新的一条记录状态
+                            ExamRecord latest = sRecords.get(0);
+                            resp.setStudentRecordId(latest.getId());
+                            resp.setStudentStatus(latest.getStatus());
+                            resp.setStudentScore(latest.getTotalScore());
+                        }
+                        
+                        // 3. 计算已满负荷尝试次数 (status != 0)
+                        long attemptCount = sRecords.stream().filter(r -> r.getStatus() != 0).count();
+                        resp.setAttemptCount((int) attemptCount);
+
+                        // 4. 提取所有已批改的记录 (status == 2)
+                        List<TaskResponse.GradedRecord> graded = sRecords.stream()
+                                .filter(r -> r.getStatus() == 2)
+                                .map(r -> {
+                                    TaskResponse.GradedRecord gr = new TaskResponse.GradedRecord();
+                                    gr.setRecordId(r.getId());
+                                    gr.setScore(r.getTotalScore());
+                                    gr.setSubmitTime(r.getSubmitTime());
+                                    return gr;
+                                })
+                                .sorted((a, b) -> {
+                                    if (a.getScore() != null && b.getScore() != null) {
+                                        int cmp = b.getScore().compareTo(a.getScore());
+                                        if (cmp != 0) return cmp;
+                                    }
+                                    return b.getSubmitTime().compareTo(a.getSubmitTime());
+                                })
+                                .collect(Collectors.toList());
+                        resp.setGradedRecords(graded);
                     }
                 })
                 .collect(Collectors.toList());
@@ -330,6 +388,16 @@ public class TaskServiceImpl extends ServiceImpl<CourseTaskMapper, CourseTask> i
         
         // 设置状态名称
         response.setStatusName(STATUS_MAP.getOrDefault(task.getStatus(), "未知"));
+
+        // 计算考试时间状态 (0-未开始 1-进行中 2-已结束)
+        LocalDateTime now = LocalDateTime.now();
+        if (task.getStartTime() != null && now.isBefore(task.getStartTime())) {
+            response.setExamStatus(0);
+        } else if (task.getEndTime() != null && now.isAfter(task.getEndTime())) {
+            response.setExamStatus(2);
+        } else {
+            response.setExamStatus(1);
+        }
         
         // TODO: 远程调用获取创建者姓名
         response.setCreatorName("创建者");

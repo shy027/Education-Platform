@@ -44,7 +44,20 @@ public class QuestionServiceImpl implements QuestionService {
         // 1. 创建题目
         ExamQuestion question = new ExamQuestion();
         question.setCourseId(request.getCourseId());
-        question.setCategoryId(request.getCategoryId());
+        
+        // 学科分类映射逻辑
+        Long catId = request.getCategoryId();
+        if (catId == null && StringUtils.hasText(request.getCategoryName())) {
+            // 通过名称查询分类 ID
+            SubjectCategory category = categoryMapper.selectOne(new LambdaQueryWrapper<SubjectCategory>()
+                    .eq(SubjectCategory::getName, request.getCategoryName().trim())
+                    .eq(SubjectCategory::getIsEnabled, 1)
+                    .last("LIMIT 1"));
+            if (category != null) {
+                catId = category.getId();
+            }
+        }
+        question.setCategoryId(catId);
         question.setContent(request.getContent());
         question.setQuestionType(request.getQuestionType());
         question.setScore(request.getScore());
@@ -250,35 +263,42 @@ public class QuestionServiceImpl implements QuestionService {
 
         if (StringUtils.hasText(request.getCategoryId())) {
             String catId = request.getCategoryId();
-            // 获取分类名称用于向 course_info.subject_area 降级匹配
-            String catName = null;
-            try {
-                SubjectCategory cat = categoryMapper.selectById(catId);
-                if (cat != null) catName = cat.getName();
-            } catch (Exception ignored) {}
-
-            final String scName = catName;
             
-            // 匹配逻辑：题目直接关联了该分类，或者题目属于与其学科匹配的课程
-            wrapper.and(w -> {
-                w.eq(ExamQuestion::getCategoryId, catId);
-                if (StringUtils.hasText(scName)) {
-                    // 使用子查询匹配课程所属学科
-                    w.or().inSql(ExamQuestion::getCourseId, String.format("SELECT id FROM course_info WHERE subject_area LIKE '%%%s%%'", scName));
-                }
-            });
+            if ("unclassified".equals(catId)) {
+                // “未分类”逻辑：无学科类型id且为公共课程，或所属课程无学科
+                wrapper.and(w -> w.and(w1 -> w1.isNull(ExamQuestion::getCategoryId)
+                                .and(w2 -> w2.eq(ExamQuestion::getCourseId, 0).or().isNull(ExamQuestion::getCourseId)))
+                        .or().inSql(ExamQuestion::getCourseId, "SELECT id FROM course_info WHERE subject_area IS NULL OR subject_area = ''"));
+            } else {
+                // 获取分类名称用于向 course_info.subject_area 降级匹配
+                String catName = null;
+                try {
+                    SubjectCategory cat = categoryMapper.selectById(catId);
+                    if (cat != null) catName = cat.getName();
+                } catch (Exception ignored) {}
+
+                final String scName = catName;
+                
+                // 匹配逻辑：题目直接关联了该分类，或者题目属于与其学科匹配的课程
+                wrapper.and(w -> {
+                    w.eq(ExamQuestion::getCategoryId, catId);
+                    if (StringUtils.hasText(scName)) {
+                        // 使用子查询匹配课程所属学科
+                        w.or().inSql(ExamQuestion::getCourseId, String.format("SELECT id FROM course_info WHERE subject_area LIKE '%%%s%%'", scName));
+                    }
+                });
+            }
         }
 
         if (StringUtils.hasText(request.getDimensions())) {
-            // 素养维度搜索：支持逗号分隔的 ID 列表 (任意包含一个即匹配)
+            // 素养维度搜索：必须全部包含所选维度
             String[] dimIds = request.getDimensions().split(",");
-            wrapper.and(w -> {
-                for (int i = 0; i < dimIds.length; i++) {
-                    String id = dimIds[i].trim();
-                    if (i == 0) w.like(ExamQuestion::getDimensions, id);
-                    else w.or().like(ExamQuestion::getDimensions, id);
+            for (String id : dimIds) {
+                String trimmedId = id.trim();
+                if (StringUtils.hasText(trimmedId)) {
+                    wrapper.like(ExamQuestion::getDimensions, trimmedId);
                 }
-            });
+            }
         }
         if (StringUtils.hasText(request.getKeyword())) {
             wrapper.like(ExamQuestion::getContent, request.getKeyword());
