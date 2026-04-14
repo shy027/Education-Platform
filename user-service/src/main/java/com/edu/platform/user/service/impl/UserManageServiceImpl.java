@@ -268,5 +268,54 @@ public class UserManageServiceImpl implements UserManageService {
         UserSchoolMember member = userSchoolMemberMapper.selectOne(wrapper);
         return member != null ? member.getSchoolId() : null;
     }
-    
+
+    @Override
+    public java.util.List<Long> queryUserIds(String department, String className) {
+        if (StrUtil.isBlank(department) && StrUtil.isBlank(className)) {
+            return new ArrayList<>();
+        }
+        
+        LambdaQueryWrapper<UserSchoolMember> wrapper = new LambdaQueryWrapper<>();
+        if (StrUtil.isNotBlank(department)) {
+            wrapper.eq(UserSchoolMember::getDepartment, department);
+        }
+        if (StrUtil.isNotBlank(className)) {
+            wrapper.eq(UserSchoolMember::getClassName, className);
+        }
+        
+        List<UserSchoolMember> members = userSchoolMemberMapper.selectList(wrapper);
+        return members.stream().map(UserSchoolMember::getUserId).distinct().collect(Collectors.toList());
+    }
+
+    @Override
+    public java.util.Map<String, java.util.List<String>> getMemberFilterOptions(java.util.List<Long> userIds) {
+        java.util.Map<String, java.util.List<String>> result = new java.util.HashMap<>();
+        if (userIds == null || userIds.isEmpty()) {
+            result.put("departments", new ArrayList<>());
+            result.put("classNames", new ArrayList<>());
+            return result;
+        }
+        
+        LambdaQueryWrapper<UserSchoolMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(UserSchoolMember::getUserId, userIds);
+        List<UserSchoolMember> members = userSchoolMemberMapper.selectList(wrapper);
+        
+        List<String> departments = members.stream()
+                .map(UserSchoolMember::getDepartment)
+                .filter(StrUtil::isNotBlank)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+        
+        List<String> classNames = members.stream()
+                .map(UserSchoolMember::getClassName)
+                .filter(StrUtil::isNotBlank)
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+        
+        result.put("departments", departments);
+        result.put("classNames", classNames);
+        return result;
+    }
 }

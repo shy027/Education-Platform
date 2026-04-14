@@ -185,6 +185,25 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
         wrapper.eq(CourseMember::getCourseId, courseId)
                 .eq(ObjectUtil.isNotNull(request.getMemberRole()), CourseMember::getMemberRole, request.getMemberRole());
         
+        // 增加学院/班级过滤 (通过远程调用获取符合条件的用户ID)
+        if (StrUtil.isNotBlank(request.getDepartment()) || StrUtil.isNotBlank(request.getClassName())) {
+            java.util.Map<String, String> userQueryParams = new java.util.HashMap<>();
+            userQueryParams.put("department", request.getDepartment());
+            userQueryParams.put("className", request.getClassName());
+            try {
+                Result<java.util.List<Long>> idResult = userServiceClient.searchUserIds(userQueryParams);
+                if (idResult.isSuccess()) {
+                    java.util.List<Long> filterUserIds = idResult.getData();
+                    if (filterUserIds == null || filterUserIds.isEmpty()) {
+                        return new Page<>(request.getPageNum(), request.getPageSize());
+                    }
+                    wrapper.in(CourseMember::getUserId, filterUserIds);
+                }
+            } catch (Exception e) {
+                log.error("Search user ids failed: {}", e.getMessage());
+            }
+        }
+        
         // 权限过滤：普通学生只能看到"已加入"的成员
         if (!hasApprovePermission(courseId, currentUserId)) {
             wrapper.eq(CourseMember::getJoinStatus, 1);
@@ -197,12 +216,32 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
                 
         Page<CourseMember> memberPage = this.page(page, wrapper);
         
+        List<Long> userIds = memberPage.getRecords().stream().map(CourseMember::getUserId).collect(Collectors.toList());
+        Map<Long, UserInfoDTO> userMap = null;
+        if (!userIds.isEmpty()) {
+            try {
+                Result<Map<Long, UserInfoDTO>> userResult = userServiceClient.batchGetUserInfo(userIds);
+                if (userResult.isSuccess()) {
+                    userMap = userResult.getData();
+                }
+            } catch (Exception e) {
+                log.error("Batch get user info failed: {}", e.getMessage());
+            }
+        }
+        
+        final Map<Long, UserInfoDTO> finalUserMap = userMap;
         List<MemberResponse> list = memberPage.getRecords().stream().map(m -> {
             MemberResponse resp = new MemberResponse();
             BeanUtil.copyProperties(m, resp);
-            // TODO: 远程获取用户信息 (username, realName, avatar)
-            resp.setUsername("User" + m.getUserId());
-            resp.setRealName("Name" + m.getUserId());
+            if (finalUserMap != null && finalUserMap.containsKey(m.getUserId())) {
+                UserInfoDTO user = finalUserMap.get(m.getUserId());
+                resp.setUsername(user.getUsername());
+                resp.setRealName(user.getRealName());
+                resp.setAvatar(user.getAvatarUrl());
+            } else {
+                resp.setUsername("User" + m.getUserId());
+                resp.setRealName("Name" + m.getUserId());
+            }
             return resp;
         }).collect(Collectors.toList());
         
@@ -502,29 +541,89 @@ public class CourseMemberServiceImpl extends ServiceImpl<CourseMemberMapper, Cou
             response.setUserId(userId);
             response.setMemberRole(1); // 主讲教师
             response.setJoinStatus(1); // 已加入
-            // TODO: 远程获取用户信息 (username, realName, avatar)
-            response.setUsername("User" + userId);
-            response.setRealName("Name" + userId);
+            // 远程获取用户信息 (username, realName, avatar)
+            try {
+                Result<UserInfoDTO> userResult = userServiceClient.getUserInfo(userId);
+                if (userResult.isSuccess() && userResult.getData() != null) {
+                    UserInfoDTO user = userResult.getData();
+                    response.setUsername(user.getUsername());
+                    response.setRealName(user.getRealName());
+                    response.setAvatar(user.getAvatarUrl());
+                } else {
+                    response.setUsername("User" + userId);
+                    response.setRealName("Name" + userId);
+                }
+            } catch (Exception e) {
+                log.error("Get user info failed: {}", e.getMessage());
+                response.setUsername("User" + userId);
+                response.setRealName("Name" + userId);
+            }
             return response;
         }
         
         // 再查询course_member表
         LambdaQueryWrapper<CourseMember> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CourseMember::getCourseId, courseId)
-               .eq(CourseMember::getUserId, userId)
-               .eq(CourseMember::getJoinStatus, 1); // 1表示已加入
+               .eq(CourseMember::getUserId, userId);
         
         CourseMember member = baseMapper.selectOne(wrapper);
         if (member == null) {
-            throw new BusinessException(ResultCode.FAIL.getCode(), "用户不是该课程成员");
+            return null;
         }
         
         MemberResponse response = new MemberResponse();
         BeanUtil.copyProperties(member, response);
-        // TODO: 远程获取用户信息 (username, realName, avatar)
-        response.setUsername("User" + member.getUserId());
-        response.setRealName("Name" + member.getUserId());
+        // 远程获取用户信息 (username, realName, avatar)
+        try {
+            Result<UserInfoDTO> userResult = userServiceClient.getUserInfo(member.getUserId());
+            if (userResult.isSuccess() && userResult.getData() != null) {
+                UserInfoDTO user = userResult.getData();
+                response.setUsername(user.getUsername());
+                response.setRealName(user.getRealName());
+                response.setAvatar(user.getAvatarUrl());
+            } else {
+                response.setUsername("User" + member.getUserId());
+                response.setRealName("Name" + member.getUserId());
+            }
+        } catch (Exception e) {
+            log.error("Get user info failed: {}", e.getMessage());
+            response.setUsername("User" + member.getUserId());
+            response.setRealName("Name" + member.getUserId());
+        }
         
         return response;
+    }
+
+    @Override
+    public java.util.Map<String, java.util.List<String>> getMemberFilterOptions(Long courseId) {
+        // 1. 获取所有已加入的成员ID
+        LambdaQueryWrapper<CourseMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CourseMember::getCourseId, courseId)
+               .eq(CourseMember::getJoinStatus, 1); // 已加入
+        List<CourseMember> members = this.list(wrapper);
+        
+        if (members.isEmpty()) {
+            java.util.Map<String, java.util.List<String>> emptyResult = new java.util.HashMap<>();
+            emptyResult.put("departments", new java.util.ArrayList<>());
+            emptyResult.put("classNames", new java.util.ArrayList<>());
+            return emptyResult;
+        }
+        
+        List<Long> userIds = members.stream().map(CourseMember::getUserId).collect(Collectors.toList());
+        
+        // 2. 调用User Service获取汇总过滤选项
+        try {
+            Result<java.util.Map<String, java.util.List<String>>> result = userServiceClient.getMemberFilterOptions(userIds);
+            if (result.isSuccess()) {
+                return result.getData();
+            }
+        } catch (Exception e) {
+            log.error("Get member filter options failed: {}", e.getMessage());
+        }
+        
+        java.util.Map<String, java.util.List<String>> fallbackResult = new java.util.HashMap<>();
+        fallbackResult.put("departments", new java.util.ArrayList<>());
+        fallbackResult.put("classNames", new java.util.ArrayList<>());
+        return fallbackResult;
     }
 }

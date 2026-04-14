@@ -47,4 +47,18 @@ public class InternalUserController {
     public Result<com.edu.platform.user.dto.response.UserManageResponse> getUserById(@PathVariable Long userId) {
         return Result.success(userManageService.getUserDetail(userId));
     }
+
+    @Operation(summary = "根据条件查询用户ID列表")
+    @PostMapping("/search-ids")
+    public Result<java.util.List<Long>> queryUserIds(@RequestBody Map<String, String> params) {
+        String department = params.get("department");
+        String className = params.get("className");
+        return Result.success(userManageService.queryUserIds(department, className));
+    }
+
+    @Operation(summary = "根据用户ID列表获取去重后的学院和班级选项")
+    @PostMapping("/filter-options")
+    public Result<java.util.Map<String, java.util.List<String>>> getMemberFilterOptions(@RequestBody java.util.List<Long> userIds) {
+        return Result.success(userManageService.getMemberFilterOptions(userIds));
+    }
 }

@@ -25,7 +25,12 @@ public class UserInfoDTO {
      * 真实姓名
      */
     private String realName;
-    
+
+    /**
+     * 头像URL
+     */
+    private String avatarUrl;
+
     /**
      * 邮箱
      */

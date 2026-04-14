@@ -63,4 +63,19 @@ public interface UserManageService {
      * @return 学校ID，若无则返回null
      */
     Long getUserSchoolId(Long userId);
+
+    /**
+     * 根据条件查询用户ID列表
+     * @param department 院系
+     * @param className 班级
+     * @return 用户ID列表
+     */
+    java.util.List<Long> queryUserIds(String department, String className);
+
+    /**
+     * 根据用户ID列表获取去重后的学院和班级选项
+     * @param userIds 用户ID列表
+     * @return 包含departments和classNames的Map
+     */
+    java.util.Map<String, java.util.List<String>> getMemberFilterOptions(java.util.List<Long> userIds);
 }

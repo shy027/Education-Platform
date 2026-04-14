@@ -23,8 +23,15 @@ public class MemberQueryRequest extends PageRequest {
     /**
      * 状态:0待审批,1已加入,2已拒绝
      */
-    /**
-     * 状态:0待审批,1已加入,2已拒绝
-     */
     private Integer joinStatus;
+
+    /**
+     * 院系/学院
+     */
+    private String department;
+
+    /**
+     * 班级
+     */
+    private String className;
 }

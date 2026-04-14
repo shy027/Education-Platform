@@ -55,12 +55,16 @@ public class CourseMemberController {
             @PathVariable Long courseId,
             @RequestParam(required = false) Integer memberRole,
             @RequestParam(required = false) Integer joinStatus,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String className,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
         
         MemberQueryRequest request = new MemberQueryRequest();
         request.setMemberRole(memberRole);
         request.setJoinStatus(joinStatus);
+        request.setDepartment(department);
+        request.setClassName(className);
         request.setPageNum(pageNum);
         request.setPageSize(pageSize);
         
@@ -105,5 +109,11 @@ public class CourseMemberController {
             @RequestParam Long userId) {
         MemberResponse member = memberService.getMemberInfo(courseId, userId);
         return Result.success(member);
+    }
+
+    @Operation(summary = "获取成员筛选选项")
+    @GetMapping("/{courseId}/members/filter-options")
+    public Result<java.util.Map<String, java.util.List<String>>> getMemberFilterOptions(@PathVariable Long courseId) {
+        return Result.success(memberService.getMemberFilterOptions(courseId));
     }
 }

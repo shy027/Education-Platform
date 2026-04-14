@@ -89,7 +89,6 @@ public interface CourseMemberService extends IService<CourseMember> {
      * @return 是否是成员
      */
     boolean isCourseMember(Long courseId, Long userId);
-    
     /**
      * 获取成员信息
      *
@@ -98,4 +97,11 @@ public interface CourseMemberService extends IService<CourseMember> {
      * @return 成员信息
      */
     MemberResponse getMemberInfo(Long courseId, Long userId);
+
+    /**
+     * 获取成员筛选选项（已加入成员的学院和班级）
+     * @param courseId 课程ID
+     * @return 选项Map
+     */
+    java.util.Map<String, java.util.List<String>> getMemberFilterOptions(Long courseId);
 }
