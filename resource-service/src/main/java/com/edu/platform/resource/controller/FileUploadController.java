@@ -41,6 +41,12 @@ public class FileUploadController {
         return Result.success(fileUploadService.uploadPdf(file));
     }
 
+    @Operation(summary = "上传音频")
+    @PostMapping(value = "/audio", consumes = "multipart/form-data")
+    public Result<AttachmentUploadResponse> uploadAudio(@RequestParam("file") MultipartFile file) {
+        return Result.success(fileUploadService.uploadAudio(file));
+    }
+
     @Operation(summary = "PDF流代理预览")
     @GetMapping("/pdf-proxy")
     public void proxyPdf(@RequestParam String fileUrl, HttpServletResponse response) {

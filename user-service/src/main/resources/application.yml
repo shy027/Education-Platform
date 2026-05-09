@@ -11,6 +11,11 @@ spring:
         username: nacos
         password: nacos
   
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
+  
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/education_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false

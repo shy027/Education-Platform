@@ -32,11 +32,11 @@ public class OssFileServiceImpl implements FileService {
     private final AliyunOssProperties ossProperties;
     
     // 允许的图片格式
-    private static final List<String> IMAGE_TYPES = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp");
+    private static final List<String> IMAGE_TYPES = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp", "webp");
     // 允许的文档格式
     private static final List<String> DOC_TYPES = Arrays.asList("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx");
-    // 图片最大2MB
-    private static final long MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+    // 图片最大10MB
+    private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024;
     // 文档最大10MB
     private static final long MAX_DOC_SIZE = 10 * 1024 * 1024;
     
@@ -130,7 +130,7 @@ public class OssFileServiceImpl implements FileService {
         if (IMAGE_TYPES.contains(extension)) {
             if (fileSize > MAX_IMAGE_SIZE) {
                 throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), 
-                        "图片大小不能超过2MB");
+                        "图片大小不能超过10MB");
             }
             return;
         }

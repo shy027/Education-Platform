@@ -43,20 +43,30 @@ public class FileUploadServiceImpl implements FileUploadService {
     private static final List<String> IMAGE_TYPES = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp", "webp");
     // 允许的视频格式
     private static final List<String> VIDEO_TYPES = Arrays.asList("mp4", "avi", "mov", "wmv", "flv", "mkv");
+    // 允许的音频格式
+    private static final List<String> AUDIO_TYPES = Arrays.asList("mp3", "wav", "m4a", "aac", "flac", "ogg");
     // 允许的PDF及文档格式
-    private static final List<String> PDF_TYPES = Arrays.asList("pdf", "doc", "docx", "ppt", "pptx");
+    private static final List<String> PDF_TYPES = Arrays.asList("pdf");
     
-    // 图片最大5MB
-    private static final long MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-    // 视频最大500MB
-    private static final long MAX_VIDEO_SIZE = 500 * 1024 * 1024;
-    // PDF最大50MB
-    private static final long MAX_PDF_SIZE = 50 * 1024 * 1024;
+    // 图片最大10MB
+    private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+    // 视频最大200MB
+    private static final long MAX_VIDEO_SIZE = 200 * 1024 * 1024;
+    // 音频最大200MB
+    private static final long MAX_AUDIO_SIZE = 200 * 1024 * 1024;
+    // PDF最大10MB
+    private static final long MAX_PDF_SIZE = 10 * 1024 * 1024;
     
     @Override
     public AttachmentUploadResponse uploadImage(MultipartFile file) {
         validateFile(file, IMAGE_TYPES, MAX_IMAGE_SIZE);
         return uploadToOss(file, "images");
+    }
+
+    @Override
+    public AttachmentUploadResponse uploadAudio(MultipartFile file) {
+        validateFile(file, AUDIO_TYPES, MAX_AUDIO_SIZE);
+        return uploadToOss(file, "audios");
     }
     
     @Override

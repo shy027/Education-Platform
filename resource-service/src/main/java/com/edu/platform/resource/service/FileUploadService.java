@@ -35,6 +35,14 @@ public interface FileUploadService {
     AttachmentUploadResponse uploadPdf(MultipartFile file);
 
     /**
+     * 上传音频
+     *
+     * @param file 文件
+     * @return 上传结果
+     */
+    AttachmentUploadResponse uploadAudio(MultipartFile file);
+
+    /**
      * PDF流代理预览
      *
      * @param fileUrl  原始文件URL
