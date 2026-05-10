@@ -87,13 +87,11 @@
         
         <!-- 容联云短信SDK - 暂时注释,使用模拟发送 -->
         <!-- 容联云短信SDK - 暂时注释,使用模拟发送 -->
-        <!--
         <dependency>
             <groupId>com.cloopen</groupId>
             <artifactId>java-sms-sdk</artifactId>
-            <version>1.0.5</version>
+            <version>1.0.4</version>
         </dependency>
-        -->
         
         <!-- Nacos 服务发现 -->
         <dependency>
@@ -112,6 +110,13 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

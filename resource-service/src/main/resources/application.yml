@@ -8,6 +8,7 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
+#        server-addr: 119.45.200.166:8848
         username: nacos
         password: nacos
   servlet:
@@ -20,6 +21,7 @@ spring:
     url: jdbc:mysql://localhost:3306/education_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root
     password: password
+#    password: 20040614aaa@shy
     
     # HikariCP连接池配置
     hikari:

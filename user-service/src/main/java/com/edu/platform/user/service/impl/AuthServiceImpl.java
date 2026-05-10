@@ -110,42 +110,9 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "账号已被禁用");
         }
         
-        // 更新最后登录时间
-        user.setLastLoginTime(LocalDateTime.now());
-        userAccountMapper.updateById(user);
-        
-        // 获取用户角色
-        List<String> roles = getUserRoles(user.getId());
-        
-        // 生成Token(包含角色信息)
-        java.util.Map<String, Object> claims = new java.util.HashMap<>();
-        claims.put("roles", roles);
-        String token = JwtUtil.generateToken(user.getId(), user.getUsername(), claims);
-        
         // 构建响应
-        LoginResponse response = new LoginResponse();
-        response.setToken(token);
-        
-        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
-        userInfo.setUserId(user.getId());
-        userInfo.setUsername(user.getUsername());
-        userInfo.setRealName(user.getRealName());
-        userInfo.setAvatar(user.getAvatarUrl());
-        userInfo.setPhone(user.getPhone());
-        userInfo.setEmail(user.getEmail());
-        userInfo.setRoles(roles);
-        
-        // 获取用户第一个学校
-        UserSchool firstSchool = getFirstUserSchool(user.getId());
-        if (firstSchool != null) {
-            userInfo.setSchoolId(firstSchool.getId());
-            userInfo.setSchoolName(firstSchool.getSchoolName());
-        }
-        
-        response.setUserInfo(userInfo);
-        
         log.info("用户登录成功: userId={}, username={}", user.getId(), user.getUsername());
-        return response;
+        return buildLoginResponse(user);
     }
     
     @Override
@@ -309,6 +276,8 @@ public class AuthServiceImpl implements AuthService {
         LambdaQueryWrapper<UserAccount> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserAccount::getPhone, request.getPhone());
         wrapper.eq(UserAccount::getStatus, 1);
+        wrapper.orderByDesc(UserAccount::getId);
+        wrapper.last("LIMIT 1");
         UserAccount user = userAccountMapper.selectOne(wrapper);
         
         if (user == null) {
@@ -334,6 +303,8 @@ public class AuthServiceImpl implements AuthService {
         LambdaQueryWrapper<UserAccount> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserAccount::getPhone, request.getPhone());
         wrapper.eq(UserAccount::getStatus, 1);
+        wrapper.orderByDesc(UserAccount::getId);
+        wrapper.last("LIMIT 1");
         UserAccount user = userAccountMapper.selectOne(wrapper);
         
         if (user == null) {

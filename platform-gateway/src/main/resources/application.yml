@@ -10,6 +10,7 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
+#        server-addr: 119.45.200.166:8848
         username: nacos
         password: nacos
 

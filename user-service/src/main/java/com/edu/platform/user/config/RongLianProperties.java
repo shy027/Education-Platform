@@ -35,6 +35,16 @@ public class RongLianProperties {
     private String templateId;
     
     /**
+     * 服务器地址 (生产环境: app.cloopen.com)
+     */
+    private String serverIp = "app.cloopen.com";
+    
+    /**
+     * 服务器端口 (默认: 8883)
+     */
+    private String serverPort = "8883";
+
+    /**
      * 开发模式(true:模拟发送 false:真实发送)
      */
     private Boolean devMode = true;

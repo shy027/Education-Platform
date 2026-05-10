@@ -2,6 +2,8 @@ package com.edu.platform.user.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.cloopen.rest.sdk.BodyType;
+import com.cloopen.rest.sdk.CCPRestSmsSDK;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.ResultCode;
 import com.edu.platform.user.config.RongLianProperties;
@@ -11,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -28,7 +31,7 @@ public class SmsServiceImpl implements SmsService {
     
     private static final String VERIFY_CODE_PREFIX = "sms:verify:code:";
     private static final String SEND_LIMIT_PREFIX = "sms:send:limit:";
-    private static final int CODE_LENGTH = 6;
+    private static final int CODE_LENGTH = 4;
     private static final long CODE_EXPIRE_MINUTES = 5;
     private static final long SEND_INTERVAL_SECONDS = 60;
     
@@ -62,10 +65,28 @@ public class SmsServiceImpl implements SmsService {
             return code;
         }
         
-        // TODO: 生产模式需要集成容联云SDK发送短信
-        // 目前暂时也返回验证码用于测试
-        log.warn("【生产模式-未实现】手机号: {}, 验证码: {}", phone, code);
-        return code;
+        // 生产模式:集成容联云SDK发送短信
+        try {
+            CCPRestSmsSDK sdk = new CCPRestSmsSDK();
+            sdk.init(rongLianProperties.getServerIp(), rongLianProperties.getServerPort());
+            sdk.setAccount(rongLianProperties.getAccountSid(), rongLianProperties.getAuthToken());
+            sdk.setAppId(rongLianProperties.getAppId());
+            sdk.setBodyType(BodyType.Type_JSON);
+
+            String[] datas = {code, String.valueOf(CODE_EXPIRE_MINUTES)};
+            HashMap<String, Object> result = sdk.sendTemplateSMS(phone, rongLianProperties.getTemplateId(), datas);
+
+            if ("000000".equals(result.get("statusCode"))) {
+                log.info("短信发送成功: 手机号={}", phone);
+                return null; // 真实发送成功后不返回验证码
+            } else {
+                log.error("短信发送失败: 错误码={}, 错误信息={}", result.get("statusCode"), result.get("statusMsg"));
+                throw new BusinessException(ResultCode.FAIL.getCode(), "短信发送失败: " + result.get("statusMsg"));
+            }
+        } catch (Exception e) {
+            log.error("短信发送异常", e);
+            throw new BusinessException(ResultCode.FAIL.getCode(), "短信发送异常: " + e.getMessage());
+        }
     }
     
     @Override
