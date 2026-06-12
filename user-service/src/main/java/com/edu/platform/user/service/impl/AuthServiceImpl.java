@@ -39,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRelRoleMapper userRelRoleMapper;
     private final UserSchoolMapper userSchoolMapper;
     private final UserSchoolMemberMapper userSchoolMemberMapper;
+    private final UserStatsMapper userStatsMapper;
     private final SmsService smsService;
     
     @Override
@@ -72,15 +73,20 @@ public class AuthServiceImpl implements AuthService {
         
         userAccountMapper.insert(user);
         
-        // 分配默认角色(学生)
-        LambdaQueryWrapper<UserRole> roleWrapper = new LambdaQueryWrapper<>();
-        roleWrapper.eq(UserRole::getRoleCode, "STUDENT");
-        UserRole studentRole = userRoleMapper.selectOne(roleWrapper);
+        // 分配角色(支持学生或教师)
+        String targetRoleCode = "STUDENT";
+        if ("TEACHER".equals(request.getRoleCode())) {
+            targetRoleCode = "TEACHER";
+        }
         
-        if (studentRole != null) {
+        LambdaQueryWrapper<UserRole> roleWrapper = new LambdaQueryWrapper<>();
+        roleWrapper.eq(UserRole::getRoleCode, targetRoleCode);
+        UserRole targetRole = userRoleMapper.selectOne(roleWrapper);
+        
+        if (targetRole != null) {
             UserRelRole userRelRole = new UserRelRole();
             userRelRole.setUserId(user.getId());
-            userRelRole.setRoleId(studentRole.getId());
+            userRelRole.setRoleId(targetRole.getId());
             userRelRole.setCreatedTime(LocalDateTime.now());
             userRelRoleMapper.insert(userRelRole);
         }
@@ -367,6 +373,42 @@ public class AuthServiceImpl implements AuthService {
         UserSchoolMember member = userSchoolMemberMapper.selectOne(mw);
         if (member == null) return null;
         return userSchoolMapper.selectById(member.getSchoolId());
+    }
+    
+    @Override
+    public java.util.Map<String, Object> getProfileStats(Long userId) {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        
+        UserAccount user = userAccountMapper.selectById(userId);
+        if (user == null) {
+            return stats;
+        }
+        
+        java.util.List<String> roles = getUserRoles(userId);
+        
+        if (roles.contains("TEACHER")) {
+            stats.put("courseCount", userStatsMapper.countTeacherCourses(userId));
+            stats.put("studentCount", userStatsMapper.countTeacherStudents(userId));
+            stats.put("taskCount", userStatsMapper.countTeacherTasks(userId));
+            stats.put("topicCount", userStatsMapper.countTeacherTopics(userId));
+        } else if (roles.contains("ADMIN") || roles.contains("SCHOOL_LEADER")) {
+            stats.put("schoolCount", userStatsMapper.countSchools());
+            stats.put("auditCount", userStatsMapper.countPendingAudits());
+            stats.put("resourceCount", userStatsMapper.countTotalResources());
+            stats.put("userCount", userStatsMapper.countTotalUsers());
+        } else {
+            // 默认为学生
+            stats.put("joinedCourseCount", userStatsMapper.countStudentJoinedCourses(userId));
+            // 假设学生完成作业用 exam_record，也可以根据实际业务调整，这里做一个通用查询
+            stats.put("finishedHomeworkCount", userStatsMapper.countStudentFinishedHomework(userId));
+            stats.put("discussionCount", userStatsMapper.countStudentDiscussions(userId));
+            
+            // 学习时长(小时)
+            int studySeconds = userStatsMapper.getStudentStudySeconds(userId);
+            stats.put("studyHours", Math.round(studySeconds / 3600.0f));
+        }
+        
+        return stats;
     }
     
 }

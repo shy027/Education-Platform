@@ -8,6 +8,7 @@ import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.common.result.ResultCode;
 import com.edu.platform.common.utils.PasswordUtil;
+import com.edu.platform.user.dto.request.UpdateUserRequest;
 import com.edu.platform.user.dto.request.UserQueryRequest;
 import com.edu.platform.user.dto.response.UserManageResponse;
 import com.edu.platform.user.entity.UserAccount;
@@ -135,6 +136,86 @@ public class UserManageServiceImpl implements UserManageService {
         
         user.setStatus(status);
         userAccountMapper.updateById(user);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateUser(Long userId, UpdateUserRequest request) {
+        UserAccount user = userAccountMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ResultCode.USER_NOT_FOUND.getCode(), "用户不存在");
+        }
+        
+        // 更新 UserAccount 的信息
+        if (StrUtil.isNotBlank(request.getUsername())) {
+            // 校验用户名是否重复
+            LambdaQueryWrapper<UserAccount> query = new LambdaQueryWrapper<>();
+            query.eq(UserAccount::getUsername, request.getUsername())
+                 .ne(UserAccount::getId, userId);
+            if (userAccountMapper.selectCount(query) > 0) {
+                throw new BusinessException(ResultCode.USER_ALREADY_EXISTS.getCode(), "用户名已被占用");
+            }
+            user.setUsername(request.getUsername());
+        }
+        if (StrUtil.isNotBlank(request.getAvatarUrl())) {
+            user.setAvatarUrl(request.getAvatarUrl());
+        }
+        if (StrUtil.isNotBlank(request.getRealName())) {
+            user.setRealName(request.getRealName());
+        }
+        if (StrUtil.isNotBlank(request.getPhone())) {
+            user.setPhone(request.getPhone());
+        }
+        if (StrUtil.isNotBlank(request.getEmail())) {
+            user.setEmail(request.getEmail());
+        }
+        if (request.getGender() != null) {
+            user.setGender(request.getGender());
+        }
+        userAccountMapper.updateById(user);
+        
+        // 更新 UserSchoolMember 的信息（如果没有则新建）
+        LambdaQueryWrapper<UserSchoolMember> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserSchoolMember::getUserId, userId)
+               .orderByDesc(UserSchoolMember::getJoinTime)
+               .last("LIMIT 1");
+        UserSchoolMember member = userSchoolMemberMapper.selectOne(wrapper);
+        
+        boolean isNew = false;
+        if (member == null) {
+            member = new UserSchoolMember();
+            member.setUserId(userId);
+            member.setJoinTime(java.time.LocalDateTime.now());
+            member.setStatus(1); // 默认在校
+            member.setMemberType(3); // 默认学生
+            isNew = true;
+        }
+        
+        if (StrUtil.isNotBlank(request.getStudentNo())) {
+            member.setJobNumber(request.getStudentNo());
+        }
+        if (StrUtil.isNotBlank(request.getDepartment())) {
+            member.setDepartment(request.getDepartment());
+        }
+        if (StrUtil.isNotBlank(request.getClassName())) {
+            member.setClassName(request.getClassName());
+        }
+        
+        // 如果也修改了学校名称
+        if (StrUtil.isNotBlank(request.getSchoolName())) {
+            LambdaQueryWrapper<com.edu.platform.user.entity.UserSchool> schoolWrapper = new LambdaQueryWrapper<>();
+            schoolWrapper.eq(com.edu.platform.user.entity.UserSchool::getSchoolName, request.getSchoolName());
+            com.edu.platform.user.entity.UserSchool school = userSchoolMapper.selectOne(schoolWrapper);
+            if (school != null) {
+                member.setSchoolId(school.getId());
+            }
+        }
+        
+        if (isNew) {
+            userSchoolMemberMapper.insert(member);
+        } else {
+            userSchoolMemberMapper.updateById(member);
+        }
     }
     
     @Override

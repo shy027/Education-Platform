@@ -108,4 +108,12 @@ public class AuthController {
         return Result.success("密码修改成功", null);
     }
     
+    @Operation(summary = "获取个人中心统计数据")
+    @GetMapping("/profile/stats")
+    public Result<Map<String, Object>> getProfileStats(HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute(Constants.USER_ID);
+        Map<String, Object> stats = authService.getProfileStats(userId);
+        return Result.success(stats);
+    }
+    
 }

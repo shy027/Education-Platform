@@ -46,10 +46,18 @@ public interface AuthService {
     /**
      * 修改密码
      *
-     * @param userId 用户ID
-     * @param request 修改密码请求
+     * @param userId        用户ID
+     * @param updateRequest 修改请求
      */
-    void updatePassword(Long userId, UpdatePasswordRequest request);
+    void updatePassword(Long userId, UpdatePasswordRequest updateRequest);
+    
+    /**
+     * 获取个人中心统计数据
+     * 
+     * @param userId 用户ID
+     * @return 统计数据
+     */
+    java.util.Map<String, Object> getProfileStats(Long userId);
     
     /**
      * 手机号密码登录

@@ -2,11 +2,9 @@ package com.edu.platform.user.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.model.PutObjectRequest;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.ResultCode;
-import com.edu.platform.user.config.AliyunOssProperties;
+import com.edu.platform.user.config.LocalStorageProperties;
 import com.edu.platform.user.service.FileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,12 +12,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * 文件服务实现(阿里云OSS)
+ * 文件服务实现（本地存储版）
  *
  * @author Education Platform
  */
@@ -27,10 +27,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class OssFileServiceImpl implements FileService {
-    
-    private final OSS ossClient;
-    private final AliyunOssProperties ossProperties;
-    
+
+    private final LocalStorageProperties storageProperties;
+
     // 允许的图片格式
     private static final List<String> IMAGE_TYPES = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp", "webp");
     // 允许的文档格式
@@ -39,78 +38,78 @@ public class OssFileServiceImpl implements FileService {
     private static final long MAX_IMAGE_SIZE = 10 * 1024 * 1024;
     // 文档最大10MB
     private static final long MAX_DOC_SIZE = 10 * 1024 * 1024;
-    
+
     @Override
     public String uploadFile(MultipartFile file, String folder) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "文件不能为空");
         }
-        
-        // 获取原始文件名
+
         String originalFilename = file.getOriginalFilename();
         if (StrUtil.isBlank(originalFilename)) {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "文件名不能为空");
         }
-        
-        // 获取文件扩展名
+
         String extension = getFileExtension(originalFilename);
-        
-        // 验证文件类型和大小
         validateFile(file, extension);
-        
-        // 生成唯一文件名
+
+        // 使用 UUID 作为文件名前缀，避免重名覆盖
         String fileName = IdUtil.simpleUUID() + "." + extension;
-        
-        // 构建完整路径: education/folder/fileName
-        String objectName = ossProperties.getFolder() + "/" + folder + "/" + fileName;
-        
-        try (InputStream inputStream = file.getInputStream()) {
-            // 上传到OSS
-            PutObjectRequest putObjectRequest = new PutObjectRequest(
-                    ossProperties.getBucketName(),
-                    objectName,
-                    inputStream
-            );
-            ossClient.putObject(putObjectRequest);
-            
-            // 返回文件URL
-            String fileUrl = "https://" + ossProperties.getBucketName() + "." + 
-                            ossProperties.getEndpoint() + "/" + objectName;
-            
-            log.info("文件上传成功: {}", fileUrl);
+
+        // 完整本地存储路径，例如: /home/uadmin/deploy/uploads/user/avatar/xxxx.jpg
+        String localDirPath = storageProperties.getPath() + "/" + folder;
+        Path dirPath = Paths.get(localDirPath);
+
+        try {
+            // 若目录不存在则自动创建
+            Files.createDirectories(dirPath);
+
+            Path filePath = dirPath.resolve(fileName);
+            file.transferTo(filePath.toFile());
+
+            // 对外访问的 URL: http://10.54.0.36/uploads/user/avatar/xxxx.jpg
+            String fileUrl = storageProperties.getBaseUrl() + "/uploads/" + folder + "/" + fileName;
+
+            log.info("文件上传成功(本地): {}", fileUrl);
             return fileUrl;
-            
+
         } catch (IOException e) {
             log.error("文件上传失败", e);
-            throw new BusinessException(ResultCode.FAIL.getCode(), "文件上传失败");
+            throw new BusinessException(ResultCode.FAIL.getCode(), "文件上传失败: " + e.getMessage());
         }
     }
-    
+
     @Override
     public void deleteFile(String fileUrl) {
         if (StrUtil.isBlank(fileUrl)) {
             return;
         }
-        
+
         try {
-            // 从URL中提取objectName
-            String objectName = extractObjectName(fileUrl);
-            if (StrUtil.isNotBlank(objectName)) {
-                ossClient.deleteObject(ossProperties.getBucketName(), objectName);
-                log.info("文件删除成功: {}", objectName);
+            // 从 URL 中提取相对路径，还原本地文件路径
+            // URL 格式: http://10.54.0.36/uploads/user/avatar/xxxx.jpg
+            String uploadsPrefix = storageProperties.getBaseUrl() + "/uploads/";
+            if (fileUrl.startsWith(uploadsPrefix)) {
+                String relativePath = fileUrl.substring(uploadsPrefix.length());
+                Path filePath = Paths.get(storageProperties.getPath(), relativePath);
+                Files.deleteIfExists(filePath);
+                log.info("文件删除成功: {}", filePath);
+            } else {
+                log.warn("非本地文件，跳过删除: {}", fileUrl);
             }
         } catch (Exception e) {
             log.error("文件删除失败: {}", fileUrl, e);
         }
     }
-    
+
     @Override
     public String uploadAvatar(MultipartFile file, Long userId) {
-        return uploadFile(file, "avatar/" + userId);
+        // 头像存储到 user/avatar/ 目录下（userId 作为子目录）
+        return uploadFile(file, "user/avatar/" + userId);
     }
-    
+
     /**
-     * 获取文件扩展名
+     * 获取文件扩展名（小写）
      */
     private String getFileExtension(String filename) {
         int lastDotIndex = filename.lastIndexOf(".");
@@ -119,46 +118,28 @@ public class OssFileServiceImpl implements FileService {
         }
         return filename.substring(lastDotIndex + 1).toLowerCase();
     }
-    
+
     /**
-     * 验证文件
+     * 验证文件类型和大小
      */
     private void validateFile(MultipartFile file, String extension) {
         long fileSize = file.getSize();
-        
-        // 验证图片
+
         if (IMAGE_TYPES.contains(extension)) {
             if (fileSize > MAX_IMAGE_SIZE) {
-                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), 
-                        "图片大小不能超过10MB");
+                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "图片大小不能超过10MB");
             }
             return;
         }
-        
-        // 验证文档
+
         if (DOC_TYPES.contains(extension)) {
             if (fileSize > MAX_DOC_SIZE) {
-                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), 
-                        "文档大小不能超过10MB");
+                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "文档大小不能超过10MB");
             }
             return;
         }
-        
-        throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), 
-                "不支持的文件格式: " + extension);
+
+        throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "不支持的文件格式: " + extension);
     }
-    
-    /**
-     * 从URL中提取objectName
-     */
-    private String extractObjectName(String fileUrl) {
-        // URL格式: https://bucket.endpoint/education/folder/file.ext
-        String prefix = "https://" + ossProperties.getBucketName() + "." + 
-                       ossProperties.getEndpoint() + "/";
-        if (fileUrl.startsWith(prefix)) {
-            return fileUrl.substring(prefix.length());
-        }
-        return null;
-    }
-    
+
 }

@@ -105,11 +105,15 @@ public class PdfGenerator {
             builder.useFastMode();
             
             // 注册中文字体 (解决 # 乱码问题)
-            File fontFile = new File("C:/Windows/Fonts/simsun.ttc");
-            if (fontFile.exists()) {
-                builder.useFont(fontFile, "SimSun");
+            File winFont = new File("C:/Windows/Fonts/simsun.ttc");
+            File linuxFont = new File("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc");
+            
+            if (winFont.exists()) {
+                builder.useFont(winFont, "SimSun");
+            } else if (linuxFont.exists()) {
+                builder.useFont(linuxFont, "SimSun"); // 将Linux字体映射为模板中的 SimSun
             } else {
-                log.warn("未找到系统字体 simsun.ttc，PDF 中文渲染可能失败");
+                log.warn("未找到中文字体(simsun.ttc 或 wqy-zenhei.ttc)，PDF 中文渲染可能失败");
             }
             
             builder.withHtmlContent(html, null);

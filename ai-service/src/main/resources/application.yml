@@ -7,8 +7,8 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
-#        server-addr: 119.45.200.166:8848
+#        server-addr: localhost:8848
+        server-addr: 10.54.0.36:8848
         username: nacos
         password: nacos
   
@@ -16,8 +16,8 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/education_platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root
-    password: password
-#    password: 20040614aaa@shy
+#    password: password
+    password: 20040614aaa@shy
     
     hikari:
       minimum-idle: 5
@@ -41,14 +41,13 @@ mybatis-plus:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
-# 阿里云 OSS 配置
-aliyun:
-  oss:
-    endpoint: oss-cn-hangzhou.aliyuncs.com
-    access-key-id: ${ALIYUN_OSS_ACCESS_KEY_ID}
-    access-key-secret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
-    bucket-name: education-platform-shy
-    folder: education/ai-temp
+# 本地文件存储配置
+local:
+  storage:
+    # 服务器上文件的物理存储根路径
+    path: /home/uadmin/deploy/uploads
+    # 对外提供访问的基础URL（学校服务器IP）
+    base-url: http://10.54.0.36
 
 # 阿里百炼 AI 配置
 ai:

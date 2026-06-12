@@ -1,28 +1,16 @@
 package com.edu.platform.resource.config;
 
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
 /**
- * OSS配置类
+ * OssConfig 已弃用，文件存储已迁移至本地服务器。
+ * 请使用 LocalStorageProperties 替代。
+ *
+ * 此文件保留为空实现是为了避免 git 历史丢失，
+ * OssConfig Bean 已被移除，请勿再注入 OSS 相关 Bean。
  *
  * @author Education Platform
+ * @deprecated 已替换为本地存储
  */
-@Configuration
-@RequiredArgsConstructor
+@Deprecated
 public class OssConfig {
-    
-    private final AliyunOssProperties ossProperties;
-    
-    @Bean
-    public OSS ossClient() {
-        return new OSSClientBuilder().build(
-                ossProperties.getEndpoint(),
-                ossProperties.getAccessKeyId(),
-                ossProperties.getAccessKeySecret());
-    }
-    
+    // 已弃用，不再创建任何 Bean
 }

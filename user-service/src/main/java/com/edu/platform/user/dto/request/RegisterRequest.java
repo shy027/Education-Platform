@@ -43,4 +43,8 @@ public class RegisterRequest {
      */
     private String realName;
     
+    /**
+     * 角色编码 (STUDENT 或 TEACHER)
+     */
+    private String roleCode;
 }

@@ -1,4 +1,4 @@
-package com.edu.platform.ai.config;
+package com.edu.platform.community.config;
 
 /**
  * OssConfig 已弃用，文件存储已迁移至本地服务器。

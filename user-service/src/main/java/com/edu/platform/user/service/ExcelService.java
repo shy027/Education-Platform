@@ -29,6 +29,14 @@ public interface ExcelService {
      * @return 导入结果
      */
     Map<String, Object> importUsers(MultipartFile file, Long currentSchoolId);
+
+    /**
+     * 单独创建一个用户（表单方式）
+     *
+     * @param request        用户信息
+     * @param currentSchoolId 当前操作者的学校ID（校领导传此值；管理员传null）
+     */
+    void createSingleUser(com.edu.platform.user.dto.request.CreateUserRequest request, Long currentSchoolId);
     
     /**
      * 导出用户列表

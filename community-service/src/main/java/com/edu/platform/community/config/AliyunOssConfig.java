@@ -1,28 +1,13 @@
 package com.edu.platform.community.config;
 
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.OSSClientBuilder;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
 /**
- * 阿里云OSS配置
+ * AliyunOssConfig 已弃用，文件存储已迁移至本地服务器。
+ * 请使用 LocalStorageProperties 替代。
  *
  * @author Education Platform
+ * @deprecated 已替换为本地存储
  */
-@Configuration
-@RequiredArgsConstructor
+@Deprecated
 public class AliyunOssConfig {
-    
-    private final AliyunOssProperties ossProperties;
-    
-    @Bean
-    public OSS ossClient() {
-        return new OSSClientBuilder().build(
-            ossProperties.getEndpoint(),
-            ossProperties.getAccessKeyId(),
-            ossProperties.getAccessKeySecret()
-        );
-    }
+    // 已弃用，不再创建任何 Bean
 }

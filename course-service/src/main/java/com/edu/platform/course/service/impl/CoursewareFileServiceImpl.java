@@ -2,14 +2,12 @@ package com.edu.platform.course.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.model.PutObjectRequest;
 import com.coremedia.iso.IsoFile;
 import com.coremedia.iso.boxes.MovieBox;
 import com.coremedia.iso.boxes.MovieHeaderBox;
 import com.edu.platform.common.exception.BusinessException;
 import com.edu.platform.common.result.ResultCode;
-import com.edu.platform.course.config.AliyunOssProperties;
+import com.edu.platform.course.config.LocalStorageProperties;
 import com.edu.platform.course.dto.response.FileUploadResponse;
 import com.edu.platform.course.service.CoursewareFileService;
 import lombok.RequiredArgsConstructor;
@@ -22,11 +20,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * 课件文件服务实现
+ * 课件文件服务实现（本地存储版）
  *
  * @author Education Platform
  */
@@ -34,10 +35,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class CoursewareFileServiceImpl implements CoursewareFileService {
-    
-    private final OSS ossClient;
-    private final AliyunOssProperties ossProperties;
-    
+
+    private final LocalStorageProperties storageProperties;
+
     // 允许的视频格式
     private static final List<String> VIDEO_TYPES = Arrays.asList("mp4", "avi", "mov", "wmv", "flv", "mkv", "webm");
     // 允许的文档格式（PDF）
@@ -50,15 +50,15 @@ public class CoursewareFileServiceImpl implements CoursewareFileService {
     private static final List<String> AUDIO_TYPES = Arrays.asList("mp3", "wav", "aac", "flac", "m4a", "ogg");
     // 允许的图片格式
     private static final List<String> IMAGE_TYPES = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp", "webp");
-    
+
     // 不限制文件大小（设置为-1表示无限制）
     private static final long NO_SIZE_LIMIT = -1;
-    
+
     @Override
     public FileUploadResponse uploadVideo(MultipartFile file) {
         validateFile(file, VIDEO_TYPES, NO_SIZE_LIMIT);
-        FileUploadResponse response = uploadToOss(file, "coursewares/videos");
-        
+        FileUploadResponse response = uploadToLocal(file, "course/courseware");
+
         // 提取视频元数据
         File tempFile = null;
         try {
@@ -72,7 +72,7 @@ public class CoursewareFileServiceImpl implements CoursewareFileService {
                     fos.write(buffer, 0, len);
                 }
             }
-            
+
             IsoFile isoFile = new IsoFile(tempFile.getAbsolutePath());
             MovieBox movieBox = isoFile.getMovieBox();
             if (movieBox != null) {
@@ -83,7 +83,7 @@ public class CoursewareFileServiceImpl implements CoursewareFileService {
                 }
             }
             isoFile.close();
-            
+
         } catch (Exception e) {
             log.error("视频元数据提取失败", e);
             // 提取失败不影响上传结果
@@ -92,15 +92,15 @@ public class CoursewareFileServiceImpl implements CoursewareFileService {
                 tempFile.delete();
             }
         }
-        
+
         return response;
     }
-    
+
     @Override
     public FileUploadResponse uploadPdf(MultipartFile file) {
         validateFile(file, PDF_TYPES, NO_SIZE_LIMIT);
-        FileUploadResponse response = uploadToOss(file, "coursewares/docs");
-        
+        FileUploadResponse response = uploadToLocal(file, "course/courseware");
+
         // 提取PDF页数
         String extension = getFileExtension(file.getOriginalFilename());
         if ("pdf".equals(extension)) {
@@ -112,93 +112,91 @@ public class CoursewareFileServiceImpl implements CoursewareFileService {
                 log.error("PDF页数提取失败", e);
             }
         }
-        
+
         return response;
     }
-    
+
     @Override
     public FileUploadResponse uploadAudio(MultipartFile file) {
         validateFile(file, AUDIO_TYPES, NO_SIZE_LIMIT);
-        return uploadToOss(file, "coursewares/audios");
+        return uploadToLocal(file, "course/courseware");
     }
-    
+
     @Override
     public FileUploadResponse uploadPpt(MultipartFile file) {
         validateFile(file, PPT_TYPES, NO_SIZE_LIMIT);
-        FileUploadResponse response = uploadToOss(file, "coursewares/ppts");
-        
-        // PPT页数提取可以在后续版本中实现
-        // 目前直接返回上传结果
+        FileUploadResponse response = uploadToLocal(file, "course/courseware");
+
         log.info("PPT上传成功，文件URL: {}", response.getFileUrl());
-        
         return response;
     }
-    
+
     @Override
     public FileUploadResponse uploadCover(MultipartFile file) {
         validateFile(file, IMAGE_TYPES, NO_SIZE_LIMIT);
-        return uploadToOss(file, "coursewares/covers");
+        return uploadToLocal(file, "course/cover");
     }
-    
+
     @Override
     public void deleteFile(String fileUrl) {
         if (StrUtil.isBlank(fileUrl)) {
             return;
         }
-        
+
         try {
-            // 从URL中提取objectName
-            String objectName = extractObjectName(fileUrl);
-            if (StrUtil.isNotBlank(objectName)) {
-                ossClient.deleteObject(ossProperties.getBucketName(), objectName);
-                log.info("文件删除成功: {}", objectName);
+            // 从 URL 中提取相对路径，还原本地文件路径
+            String uploadsPrefix = storageProperties.getBaseUrl() + "/uploads/";
+            if (fileUrl.startsWith(uploadsPrefix)) {
+                String relativePath = fileUrl.substring(uploadsPrefix.length());
+                Path filePath = Paths.get(storageProperties.getPath(), relativePath);
+                Files.deleteIfExists(filePath);
+                log.info("文件删除成功: {}", filePath);
+            } else {
+                log.warn("非本地文件，跳过删除: {}", fileUrl);
             }
         } catch (Exception e) {
             log.error("文件删除失败: {}", fileUrl, e);
         }
     }
-    
+
     /**
-     * 上传文件到OSS
+     * 上传文件到本地
      */
-    private FileUploadResponse uploadToOss(MultipartFile file, String subFolder) {
+    private FileUploadResponse uploadToLocal(MultipartFile file, String subFolder) {
         String originalFilename = file.getOriginalFilename();
         if (StrUtil.isBlank(originalFilename)) {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "文件名不能为空");
         }
-        
+
         String extension = getFileExtension(originalFilename);
         String fileName = IdUtil.simpleUUID() + "." + extension;
-        
-        // 构建路径: education/subFolder/fileName
-        String objectName = ossProperties.getFolder() + "/" + subFolder + "/" + fileName;
-        
-        try (InputStream inputStream = file.getInputStream()) {
-            PutObjectRequest putObjectRequest = new PutObjectRequest(
-                    ossProperties.getBucketName(),
-                    objectName,
-                    inputStream
-            );
-            ossClient.putObject(putObjectRequest);
-            
-            String fileUrl = "https://" + ossProperties.getBucketName() + "." + 
-                            ossProperties.getEndpoint() + "/" + objectName;
-            
+
+        String localDirPath = storageProperties.getPath() + "/" + subFolder;
+        Path dirPath = Paths.get(localDirPath);
+
+        try {
+            Files.createDirectories(dirPath);
+
+            Path filePath = dirPath.resolve(fileName);
+            file.transferTo(filePath.toFile());
+
+            String fileUrl = storageProperties.getBaseUrl() + "/uploads/" + subFolder + "/" + fileName;
+
             FileUploadResponse response = new FileUploadResponse();
             response.setFileName(originalFilename);
             response.setFileUrl(fileUrl);
             response.setFileSize(file.getSize());
             response.setFileType(extension);
             response.setMimeType(file.getContentType());
-            
+
             return response;
-            
+
         } catch (IOException e) {
             log.error("文件上传失败", e);
-            throw new BusinessException(ResultCode.FAIL.getCode(), "文件上传失败");
+            throw new BusinessException(ResultCode.FAIL.getCode(), "文件上传失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 验证文件
      */
@@ -206,20 +204,20 @@ public class CoursewareFileServiceImpl implements CoursewareFileService {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "文件不能为空");
         }
-        
+
         // 如果maxSize为-1，表示不限制文件大小
         if (maxSize != NO_SIZE_LIMIT && file.getSize() > maxSize) {
-            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), 
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),
                     "文件大小超过限制: " + (maxSize / 1024 / 1024) + "MB");
         }
-        
+
         String extension = getFileExtension(file.getOriginalFilename());
         if (!allowedTypes.contains(extension)) {
-            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), 
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),
                     "不支持的文件类型: " + extension);
         }
     }
-    
+
     /**
      * 获取文件扩展名
      */
@@ -230,17 +228,5 @@ public class CoursewareFileServiceImpl implements CoursewareFileService {
         }
         return filename.substring(lastDotIndex + 1).toLowerCase();
     }
-    
-    /**
-     * 从URL中提取objectName
-     */
-    private String extractObjectName(String fileUrl) {
-        // URL格式: https://bucket.endpoint/education/folder/file.ext
-        String prefix = "https://" + ossProperties.getBucketName() + "." + 
-                       ossProperties.getEndpoint() + "/";
-        if (fileUrl.startsWith(prefix)) {
-            return fileUrl.substring(prefix.length());
-        }
-        return null;
-    }
+
 }

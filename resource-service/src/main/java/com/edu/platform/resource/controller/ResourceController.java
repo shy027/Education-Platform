@@ -10,16 +10,20 @@ import com.edu.platform.resource.dto.request.ResourceUpdateRequest;
 import com.edu.platform.resource.dto.response.AuditLogResponse;
 import com.edu.platform.resource.dto.response.ResourceDetailResponse;
 import com.edu.platform.resource.dto.response.ResourceResponse;
+import com.edu.platform.resource.service.ResourceExcelService;
 import com.edu.platform.resource.service.ResourceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.multipart.MultipartFile;
 import com.edu.platform.common.annotation.RequireAdminOrLeader;
 import com.edu.platform.common.annotation.RequireTeacherOrAbove;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 资源管理控制器
@@ -33,6 +37,7 @@ import java.util.List;
 public class ResourceController {
     
     private final ResourceService resourceService;
+    private final ResourceExcelService resourceExcelService;
     
     @Operation(summary = "创建资源")
     @PostMapping
@@ -148,6 +153,22 @@ public class ResourceController {
         return Result.success(resourceService.getAuditLogs(id));
     }
     
+    @Operation(summary = "下载资源导入模板")
+    @GetMapping("/admin/template")
+    @RequireAdminOrLeader
+    public void downloadTemplate(HttpServletResponse response) {
+        resourceExcelService.downloadTemplate(response);
+    }
+
+    @Operation(summary = "批量导入资源")
+    @PostMapping("/admin/import")
+    @RequireAdminOrLeader
+    public Result<Map<String, Object>> importResources(@RequestParam("file") MultipartFile file) {
+        Long adminId = UserContext.getUserId();
+        Map<String, Object> result = resourceExcelService.importResources(file, adminId);
+        return Result.success("导入完成", result);
+    }
+
     @Operation(summary = "下架资源")
     @PostMapping("/{id}/offline")
     @RequireAdminOrLeader

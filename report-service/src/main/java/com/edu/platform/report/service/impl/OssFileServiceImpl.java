@@ -1,19 +1,19 @@
 package com.edu.platform.report.service.impl;
 
-import com.aliyun.oss.OSS;
-import com.aliyun.oss.model.PutObjectRequest;
-import com.edu.platform.report.config.AliyunOssProperties;
+import com.edu.platform.report.config.LocalStorageProperties;
 import com.edu.platform.report.service.OssFileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayInputStream;
-import java.net.URL;
-import java.util.Date;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
- * OSS文件服务实现
+ * 本地文件服务实现 (保留类名 OssFileServiceImpl 以尽量不影响其它依赖处)
  *
  * @author Education Platform
  */
@@ -21,136 +21,75 @@ import java.util.Date;
 @Service
 @RequiredArgsConstructor
 public class OssFileServiceImpl implements OssFileService {
-    
-    private final OSS ossClient;
-    private final AliyunOssProperties ossProperties;
-    
+
+    private final LocalStorageProperties storageProperties;
+
     // PDF最大50MB
     private static final long MAX_PDF_SIZE = 50 * 1024 * 1024;
-    
+
     @Override
     public String uploadPdf(byte[] pdfBytes, String fileName, Long courseId) {
         // 1. 验证文件大小
         if (pdfBytes.length > MAX_PDF_SIZE) {
             throw new RuntimeException("PDF文件不能超过50MB");
         }
-        
-        // 2. 构建路径: education/reports/{courseId}/fileName
-        String objectName = ossProperties.getFolder() + "/" + courseId + "/" + fileName;
-        
+
+        // 2. 构建路径: report/course/{courseId}/{fileName} (根据用户的目录结构，报告分类)
+        String subFolder = "report/course/" + courseId;
+        String localDirPath = storageProperties.getPath() + "/" + subFolder;
+        Path dirPath = Paths.get(localDirPath);
+
         try {
-            // 3. 上传到OSS
-            ByteArrayInputStream inputStream = new ByteArrayInputStream(pdfBytes);
-            PutObjectRequest request = new PutObjectRequest(
-                ossProperties.getBucketName(),
-                objectName,
-                inputStream
-            );
-            ossClient.putObject(request);
-            
+            // 3. 若目录不存在则自动创建
+            Files.createDirectories(dirPath);
+
+            Path filePath = dirPath.resolve(fileName);
+            File localFile = filePath.toFile();
+
+            try (FileOutputStream fos = new FileOutputStream(localFile)) {
+                fos.write(pdfBytes);
+                fos.flush();
+            }
+
             // 4. 返回URL
-            String fileUrl = "https://" + ossProperties.getBucketName() + "." + 
-                           ossProperties.getEndpoint() + "/" + objectName;
-            
-            log.info("PDF文件上传成功: {}", fileUrl);
+            String fileUrl = storageProperties.getBaseUrl() + "/uploads/" + subFolder + "/" + fileName;
+
+            log.info("PDF文件生成成功(本地): {}", fileUrl);
             return fileUrl;
-            
+
         } catch (Exception e) {
-            log.error("PDF文件上传失败", e);
-            throw new RuntimeException("文件上传失败: " + e.getMessage());
+            log.error("PDF文件生成失败", e);
+            throw new RuntimeException("文件生成失败: " + e.getMessage());
         }
     }
-    
+
     @Override
     public void deleteFile(String fileUrl) {
         if (fileUrl == null || fileUrl.isEmpty()) {
             return;
         }
-        
+
         try {
-            String objectName = extractObjectName(fileUrl);
-            if (objectName != null) {
-                // 如果提取结果还是URL，说明解析逻辑可能有问题，打印警告
-                if (objectName.startsWith("http")) {
-                    log.warn("未能成功从URL中提取对象名称: {}", fileUrl);
-                }
-                ossClient.deleteObject(ossProperties.getBucketName(), objectName);
-                log.info("OSS文件删除成功: {}", objectName);
+            // 从 URL 中提取相对路径，还原本地文件路径
+            // URL 格式: http://10.54.0.36/uploads/report/course/xxxx.pdf
+            String uploadsPrefix = storageProperties.getBaseUrl() + "/uploads/";
+            if (fileUrl.startsWith(uploadsPrefix)) {
+                String relativePath = fileUrl.substring(uploadsPrefix.length());
+                Path filePath = Paths.get(storageProperties.getPath(), relativePath);
+                Files.deleteIfExists(filePath);
+                log.info("文件删除成功: {}", filePath);
+            } else {
+                log.warn("非本地文件，跳过删除: {}", fileUrl);
             }
         } catch (Exception e) {
-            log.error("OSS文件删除失败: {}", fileUrl, e);
+            log.error("文件删除失败: {}", fileUrl, e);
         }
     }
-    
+
     @Override
     public String generatePresignedUrl(String fileUrl) {
-        if (fileUrl == null || fileUrl.isEmpty()) {
-            throw new RuntimeException("文件URL不能为空");
-        }
-        
-        String objectName = extractObjectName(fileUrl);
-        if (objectName == null) {
-            throw new RuntimeException("无效的文件URL");
-        }
-        
-        try {
-            // 生成1小时有效期的预签名URL
-            Date expiration = new Date(System.currentTimeMillis() + 3600 * 1000);
-            URL url = ossClient.generatePresignedUrl(
-                ossProperties.getBucketName(),
-                objectName,
-                expiration
-            );
-            
-            log.info("生成预签名URL成功: {}", url.toString());
-            return url.toString();
-            
-        } catch (Exception e) {
-            log.error("生成预签名URL失败", e);
-            throw new RuntimeException("生成下载链接失败: " + e.getMessage());
-        }
+        // 本地存储不需要预签名，直接返回原URL即可
+        return fileUrl;
     }
-    
-    /**
-     * 从URL中提取objectName (鲁棒且解码版本)
-     */
-    private String extractObjectName(String fileUrl) {
-        if (fileUrl == null || fileUrl.isEmpty()) return null;
-        
-        String path = null;
-        try {
-            // 1. 如果不是URL开头(不包含://)，则认为已经是objectName
-            if (!fileUrl.contains("://")) {
-                path = fileUrl;
-            } else {
-                // 2. 尝试定位域名后的路径部分
-                String bucketEndpoint = ossProperties.getBucketName() + "." + ossProperties.getEndpoint();
-                int index = fileUrl.indexOf(bucketEndpoint);
-                
-                if (index != -1) {
-                    // 截取域名之后的部分
-                    path = fileUrl.substring(index + bucketEndpoint.length());
-                } else {
-                    // 3. 兼容兜底: 解析URI路径
-                    java.net.URI uri = new java.net.URI(fileUrl);
-                    path = uri.getPath();
-                }
-            }
-            
-            if (path == null) return null;
-            
-            // 4. 重要: URL解码 (处理文件名中的特殊字符或编码)
-            path = java.net.URLDecoder.decode(path, "UTF-8");
-            
-            // 5. 规范化: 去掉起始斜杠，处理双斜杠
-            while (path.startsWith("/")) {
-                path = path.substring(1);
-            }
-            return path.replace("//", "/");
-            
-        } catch (Exception e) {
-            log.error("解析OSS ObjectName失败: {}", fileUrl, e);
-            return null;
-        }
-    }
+
 }

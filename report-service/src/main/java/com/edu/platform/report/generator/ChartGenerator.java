@@ -113,8 +113,8 @@ public class ChartGenerator {
      * 设置通用字体 (解决方框乱码问题)
      */
     private void setStandardFont(JFreeChart chart) {
-        Font titleFont = new Font("SimSun", Font.BOLD, 18);
-        Font standardFont = new Font("SimSun", Font.PLAIN, 12);
+        Font titleFont = new Font("SansSerif", Font.BOLD, 18);
+        Font standardFont = new Font("SansSerif", Font.PLAIN, 12);
         
         // 1. 设置标题字体
         if (chart.getTitle() != null) {

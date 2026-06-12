@@ -1,42 +1,13 @@
 package com.edu.platform.user.config;
 
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
-
 /**
- * 阿里云OSS配置属性
+ * AliyunOssProperties 已弃用，文件存储已迁移至本地服务器。
+ * 请使用 LocalStorageProperties 替代。
  *
  * @author Education Platform
+ * @deprecated 已替换为本地存储
  */
-@Data
-@Component
-@ConfigurationProperties(prefix = "aliyun.oss")
+@Deprecated
 public class AliyunOssProperties {
-    
-    /**
-     * OSS端点
-     */
-    private String endpoint;
-    
-    /**
-     * 访问密钥ID
-     */
-    private String accessKeyId;
-    
-    /**
-     * 访问密钥Secret
-     */
-    private String accessKeySecret;
-    
-    /**
-     * 存储桶名称
-     */
-    private String bucketName;
-    
-    /**
-     * 文件夹前缀
-     */
-    private String folder;
-    
+    // 已弃用，请勿再使用
 }

@@ -148,6 +148,26 @@ public class ExcelServiceImpl implements ExcelService {
         
         return result;
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void createSingleUser(com.edu.platform.user.dto.request.CreateUserRequest request, Long currentSchoolId) {
+        // 将表单请求转换成 UserImportExcel 对象，复用已有的 importUser 核心逻辑
+        UserImportExcel data = new UserImportExcel();
+        data.setUsername(request.getUsername());
+        data.setPassword(request.getPassword());
+        data.setRealName(request.getRealName());
+        data.setPhone(request.getPhone());
+        data.setEmail(request.getEmail());
+        data.setGender(request.getGender());
+        data.setRoleCode(request.getRoleCode());
+        data.setStudentNo(request.getStudentNo());
+        data.setSchoolName(request.getSchoolName());
+        data.setDepartment(request.getDepartment());
+        data.setClassName(request.getClassName());
+        data.setMajor(request.getMajor());
+        importUser(data, currentSchoolId);
+    }
     
     @Override
     public void exportUsers(UserQueryRequest request, HttpServletResponse response) {

@@ -74,6 +74,16 @@ public class UserManageController {
         return Result.success(response);
     }
     
+    @Operation(summary = "更新用户信息")
+    @PutMapping("/{userId}")
+    @RequireAdminOrLeader
+    public Result<Void> updateUser(
+            @PathVariable Long userId,
+            @Valid @RequestBody com.edu.platform.user.dto.request.UpdateUserRequest request) {
+        userManageService.updateUser(userId, request);
+        return Result.success("更新成功", null);
+    }
+    
     @Operation(summary = "更新用户状态")
     @PutMapping("/{userId}/status")
     @RequireAdminOrLeader
@@ -122,6 +132,21 @@ public class UserManageController {
         }
         Map<String, Object> result = excelService.importUsers(file, schoolId);
         return Result.success("导入完成", result);
+    }
+
+    @Operation(summary = "单独新增一个用户（表单方式）")
+    @PostMapping("/create")
+    @RequireAdminOrLeader
+    public Result<Void> createUser(
+            jakarta.servlet.http.HttpServletRequest request,
+            @RequestBody @Valid com.edu.platform.user.dto.request.CreateUserRequest createRequest) {
+        Long userId = (Long) request.getAttribute(com.edu.platform.common.constant.Constants.USER_ID);
+        Long schoolId = null;
+        if (com.edu.platform.user.security.SecurityUtils.hasRole("SCHOOL_LEADER")) {
+            schoolId = userManageService.getUserSchoolId(userId);
+        }
+        excelService.createSingleUser(createRequest, schoolId);
+        return Result.success("用户创建成功", null);
     }
     
     @Operation(summary = "导出用户列表")

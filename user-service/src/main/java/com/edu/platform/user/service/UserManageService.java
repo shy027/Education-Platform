@@ -3,6 +3,7 @@ package com.edu.platform.user.service;
 import com.edu.platform.common.result.PageResult;
 import com.edu.platform.user.dto.request.UserQueryRequest;
 import com.edu.platform.user.dto.response.UserManageResponse;
+import com.edu.platform.user.dto.request.UpdateUserRequest;
 
 /**
  * 用户管理服务接口
@@ -34,6 +35,14 @@ public interface UserManageService {
      * @param status 状态
      */
     void updateUserStatus(Long userId, Integer status);
+    
+    /**
+     * 更新用户信息（管理员使用）
+     *
+     * @param userId 用户ID
+     * @param request 更新请求信息
+     */
+    void updateUser(Long userId, UpdateUserRequest request);
     
     /**
      * 重置用户密码
